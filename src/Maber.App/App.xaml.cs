@@ -23,7 +23,9 @@ public partial class App : Application
                 $"[{DateTime.Now:HH:mm:ss}] {e.Message}\n{e.Exception}\n\n");
             e.Handled = false;
         };
-        Main = new MainWindow();
+        // 带文件参数（关联/快捷方式）进 Slim；直接启动进 Total
+        var path = Environment.GetCommandLineArgs().Skip(1).FirstOrDefault(p => File.Exists(p));
+        Main = new MainWindow(path, totalMode: path is null);
         Main.Activate();
         _ = GetWebViewEnvironmentAsync(); // 预热 WebView2 环境
     }

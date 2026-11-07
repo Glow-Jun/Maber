@@ -26,15 +26,24 @@ public sealed partial class MainWindow : Window
     // 因此用 ready/NavigationCompleted 双信号握手，等待后再发首条文档。
     private readonly TaskCompletionSource _webReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public MainWindow(string? initialPath = null)
+    private readonly bool _totalMode;
+
+    public MainWindow(string? initialPath = null, bool totalMode = false)
     {
-        Perf($"window:ctor {(initialPath is null ? "main" : $"wikilink {Path.GetFileName(initialPath)}")}");
+        _totalMode = totalMode;
+        Perf($"window:ctor {(initialPath is null ? "main" : $"wikilink {Path.GetFileName(initialPath)}")} total={totalMode}");
         InitializeComponent();
         Title = "Maber";
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         ModeBadge.Text = "阅读";
         ApplyChromeTheme();
+        if (_totalMode)
+        {
+            SidebarToggle.Visibility = Visibility.Visible;
+            Sidebar.Visibility = Visibility.Visible;
+            EmptyState.Subtitle = "从左侧最近文件选择，或按 Ctrl+O 打开";
+        }
 
         // 所有窗口都关掉后退出进程，避免无窗口的后台残留
         Interlocked.Increment(ref LiveWindows);
@@ -80,6 +89,7 @@ public sealed partial class MainWindow : Window
             ["e"] = ToggleMode,
             ["k"] = ShowOutline,
             ["f"] = ShowFind,
+            ["b"] = ToggleSidebar,
         };
         foreach (var (key, action) in _accelerators)
             AddAccelerator((VirtualKey)char.ToUpper(key[0]), action);
@@ -119,7 +129,10 @@ public sealed partial class MainWindow : Window
         catch { /* 日志失败不影响功能 */ }
     }
 
-    /// <summary>默认竖版 4:5，宽基准 720 逻辑像素（高 = 宽 × 5/4 = 900）；夹进显示器工作区并保持比例</summary>
+    /// <summary>
+    /// Slim：竖版 4:5，宽基准 720 逻辑像素（高 = 宽 × 5/4 = 900）；
+    /// Total：1200×840 的宽版阅读台。两者都夹进显示器工作区。
+    /// </summary>
     private void SetDefaultWindowSize()
     {
         try
@@ -127,10 +140,19 @@ public sealed partial class MainWindow : Window
             var scale = Root.XamlRoot?.RasterizationScale ?? 1.0;
             if (scale < 1) scale = 1;
             var work = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
-            const double ratio = 5.0 / 4.0;              // 高/宽
-            var wLogical = Math.Min(720.0, work.Width / scale);
-            var hLogical = Math.Min(wLogical * ratio, work.Height / scale);
-            wLogical = hLogical / ratio;                  // 高度被夹矮时收宽度，保住 4:5
+            double wLogical, hLogical;
+            if (_totalMode)
+            {
+                wLogical = Math.Min(1200, work.Width / scale);
+                hLogical = Math.Min(840, work.Height / scale);
+            }
+            else
+            {
+                const double ratio = 5.0 / 4.0;              // 高/宽
+                wLogical = Math.Min(720.0, work.Width / scale);
+                hLogical = Math.Min(wLogical * ratio, work.Height / scale);
+                wLogical = hLogical / ratio;                  // 高度被夹矮时收宽度，保住 4:5
+            }
             var w = (int)(wLogical * scale);
             var h = (int)(hLogical * scale);
             AppWindow.Resize(new Windows.Graphics.SizeInt32(w, h));
@@ -514,6 +536,15 @@ public sealed partial class MainWindow : Window
     {
         if (!_ready) return;
         Post(new { type = BridgeMessages.SetTheme, theme = SettingsHost.ResolveTheme() });
+    }
+
+    // ---------- 侧栏 ----------
+    private void OnToggleSidebar(object s, RoutedEventArgs e) => ToggleSidebar();
+
+    private void ToggleSidebar()
+    {
+        if (!_totalMode) return;
+        Sidebar.Visibility = Sidebar.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ---------- 快捷键 ----------

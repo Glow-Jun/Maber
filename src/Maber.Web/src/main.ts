@@ -174,8 +174,8 @@ onHostMessage((msg) => {
 });
 
 // 快捷键：焦点在 WebView2 时 XAML KeyboardAccelerator 收不到事件，
-// 由内核在捕获阶段拦截 Ctrl+O/S/E/K/F 上报宿主分发
-const ACCELERATOR_KEYS = new Set(["o", "s", "e", "k", "f"]);
+// 由内核在捕获阶段拦截 Ctrl+O/S/E/K/F/B 上报宿主分发
+const ACCELERATOR_KEYS = new Set(["o", "s", "e", "k", "f", "b"]);
 window.addEventListener(
   "keydown",
   (e) => {

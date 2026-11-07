@@ -6,7 +6,7 @@ export type HostMessage =
   | { type: "scrollToHeading"; line: number }
   | { type: "find"; query: string; direction: 1 | -1 };
 
-export type AcceleratorKey = "o" | "s" | "e" | "k" | "f";
+export type AcceleratorKey = "o" | "s" | "e" | "k" | "f" | "b";
 
 // ===== Web → 宿主 =====
 export type WebMessage =

@@ -9,18 +9,33 @@
       <RowDefinition Height="*"/>
     </Grid.RowDefinitions>
 
-    <!-- 极简标题栏：拖拽区 + 文件名 + 模式指示 -->
+    <!-- 极简标题栏：拖拽区 + 侧栏开关（仅 Total）+ 文件名 + 模式指示 -->
     <Grid x:Name="TitleBar" Grid.Row="0" Height="36" Background="Transparent">
       <Grid x:Name="AppTitleBar" Background="Transparent">
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,0,0,0">
+          <Button x:Name="SidebarToggle" Content="☰" FontSize="14" Padding="8,0"
+                  Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
+                  Click="OnToggleSidebar" Visibility="Collapsed"/>
           <TextBlock x:Name="TitleText" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
           <TextBlock x:Name="ModeBadge" VerticalAlignment="Center" FontSize="11" Opacity="0.6"/>
         </StackPanel>
       </Grid>
     </Grid>
 
-    <!-- Source 由代码在虚拟域名映射完成后 Navigate（避免映射前导航失败） -->
-    <muxc:WebView2 x:Name="Web" Grid.Row="1"/>
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Total Mode 侧栏（Task 4 填充内容） -->
+      <Border x:Name="Sidebar" Grid.Column="0" Width="240" Visibility="Collapsed"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0"/>
+
+      <!-- Source 由代码在虚拟域名映射完成后 Navigate（避免映射前导航失败） -->
+      <muxc:WebView2 x:Name="Web" Grid.Column="1"/>
+    </Grid>
 
     <!-- 大纲悬浮（Ctrl+K）。Popup 在 Primitives 命名空间（计划的 muxc:Popup 为笔误） -->
     <primitives:Popup x:Name="OutlinePopup" IsLightDismissEnabled="True">
