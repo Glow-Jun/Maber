@@ -6,9 +6,12 @@ export type HostMessage =
   | { type: "scrollToHeading"; line: number }
   | { type: "find"; query: string; direction: 1 | -1 };
 
+export type AcceleratorKey = "o" | "s" | "e" | "k" | "f";
+
 // ===== Web → 宿主 =====
 export type WebMessage =
   | { type: "ready" }
+  | { type: "accelerator"; key: AcceleratorKey }
   | { type: "outlineChanged"; items: OutlineItem[] }
   | { type: "checkboxToggled"; line: number; checked: boolean }
   | { type: "contentChanged"; content: string }

@@ -8,7 +8,7 @@ import { extractOutline } from "./outline";
 import { SourceEditor } from "./editor";
 import { find } from "./search";
 import { send, onHostMessage } from "./bridge";
-import type { ViewMode } from "./types";
+import type { AcceleratorKey, ViewMode } from "./types";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -116,6 +116,22 @@ onHostMessage((msg) => {
       break;
   }
 });
+
+// 快捷键：焦点在 WebView2 时 XAML KeyboardAccelerator 收不到事件，
+// 由内核在捕获阶段拦截 Ctrl+O/S/E/K/F 上报宿主分发
+const ACCELERATOR_KEYS = new Set(["o", "s", "e", "k", "f"]);
+window.addEventListener(
+  "keydown",
+  (e) => {
+    if (!e.ctrlKey || e.altKey || e.metaKey) return;
+    const key = e.key.toLowerCase();
+    if (!ACCELERATOR_KEYS.has(key)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    send({ type: "accelerator", key: key as AcceleratorKey });
+  },
+  { capture: true },
+);
 
 // 给宿主的取源入口
 (window as any).__maber = { getSource: () => currentText };

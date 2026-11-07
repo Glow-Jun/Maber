@@ -46,21 +46,30 @@ public sealed partial class MainWindow : Window
         Activated += async (_, e) => { if (e.WindowActivationState != WindowActivationState.Deactivated) await SendThemeAsync(); };
         Closed += (_, _) => _watcher.Dispose();
 
-        AddAccelerator(VirtualKey.O, () => _ = PickOpenFileAsync());
-        AddAccelerator(VirtualKey.S, () => _ = SaveAsync());
-        AddAccelerator(VirtualKey.E, ToggleMode);
-        AddAccelerator(VirtualKey.K, ShowOutline);
-        AddAccelerator(VirtualKey.F, ShowFind);
+        // XAML 侧快捷键只在焦点落在 XAML 元素（如查找框）时生效；
+        // 焦点在 WebView2 内时由内核捕获按键后经 "accelerator" 消息分发到同一张表
+        _accelerators = new Dictionary<string, Action>
+        {
+            ["o"] = () => _ = PickOpenFileAsync(),
+            ["s"] = () => _ = SaveAsync(),
+            ["e"] = ToggleMode,
+            ["k"] = ShowOutline,
+            ["f"] = ShowFind,
+        };
+        foreach (var (key, action) in _accelerators)
+            AddAccelerator((VirtualKey)char.ToUpper(key[0]), action);
 
         var keyArgs = Environment.GetCommandLineArgs().Skip(1);
         _ = InitializeAsync(keyArgs.FirstOrDefault(p => File.Exists(p)));
     }
 
+    private Dictionary<string, Action> _accelerators = new();
+
     private void AddAccelerator(VirtualKey key, Action action)
     {
         var acc = new KeyboardAccelerator { Modifiers = VirtualKeyModifiers.Control, Key = key };
         acc.Invoked += (_, args) => { args.Handled = true; action(); };
-        // 挂在根 Grid 上，窗口内任意焦点位置均可触发
+        // 挂在根 Grid 上，XAML 焦点范围内任意位置均可触发
         ((Grid)Content).KeyboardAccelerators.Add(acc);
     }
 
@@ -70,6 +79,8 @@ public sealed partial class MainWindow : Window
         Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
             "app.local", Path.Combine(AppContext.BaseDirectory, "wwwroot"),
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+        // 关掉浏览器内置快捷键（Ctrl+F 呼出页内查找、Ctrl+O 呼出打开文件等），统一走我们的分发
+        Web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
         Web.CoreWebView2.Navigate("https://app.local/index.html");
         await _webReady.Task; // 等 Web 监听器就绪，避免首条 loadDocument 丢失
         if (path is null) { EmptyState.IsOpen = true; return; }
@@ -150,6 +161,10 @@ public sealed partial class MainWindow : Window
                 _ready = true;
                 _webReady.TrySetResult();
                 _ = SendThemeAsync();
+                break;
+            case BridgeMessages.Accelerator:
+                if (_accelerators.TryGetValue(json.RootElement.GetProperty("key").GetString() ?? "", out var action))
+                    action();
                 break;
             case BridgeMessages.CheckboxToggled:
                 ToggleTaskLine(json.RootElement.GetProperty("line").GetInt32(), json.RootElement.GetProperty("checked").GetBoolean());

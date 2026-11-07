@@ -12,6 +12,7 @@ public static class BridgeMessages
 
     // Web → 宿主
     public const string Ready = "ready";
+    public const string Accelerator = "accelerator";
     public const string OutlineChanged = "outlineChanged";
     public const string CheckboxToggled = "checkboxToggled";
     public const string ContentChanged = "contentChanged";
