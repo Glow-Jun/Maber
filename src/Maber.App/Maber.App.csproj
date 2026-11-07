@@ -24,7 +24,18 @@
     <ProjectReference Include="..\Maber.Core\Maber.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Web 内核产物（由 Maber.Web 构建拷入 wwwroot），运行时必须随程序输出 -->
-    <Content Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Web 内核产物（由 Maber.Web 构建拷入 wwwroot），运行时必须随程序输出。
+         用 None 而非 Content：Content 会被 MakePri 当资源扫描，mermaid 的 hash 文件名
+         会被解析成非法资源限定符（PRI249）。运行时按 BaseDirectory\wwwroot 直读，不依赖 PRI。 -->
+    <None Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!-- WinUI 3 unpackaged 的已知缺口：dotnet publish 不会带上应用自身的 Maber.App.pri，
+       发布版启动即报 ms-appx:///MainWindow.xaml 找不到并崩溃。构建输出里有该文件，这里补一份。 -->
+  <Target Name="CopyAppPriToPublish" AfterTargets="Publish">
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(TargetDir)$(AssemblyName).pri')" />
+  </Target>
 </Project>

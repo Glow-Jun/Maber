@@ -40,16 +40,28 @@ public sealed partial class MainWindow : Window
         Closed += (_, _) => { _watcher.Dispose(); if (Interlocked.Decrement(ref LiveWindows) == 0) Environment.Exit(0); };
 
         Web.WebMessageReceived += OnWebMessage;
-        Web.NavigationCompleted += (_, _) =>
+        Web.NavigationCompleted += (_, e) =>
         {
+            if (!e.IsSuccess)
+            {
+                Perf($"web:navigation-failed {e.WebErrorStatus}");
+                ShowBar($"渲染内核加载失败（{e.WebErrorStatus}）");
+                _webReady.TrySetResult(); // 放行初始化流程，避免 await 永久挂起
+                return;
+            }
             _ready = true;
             _webReady.TrySetResult();
             Perf("web:navigation-completed");
-            _ = SendThemeAsync();
+            SendTheme();
+        };
+        // 关闭查找框时清掉页内高亮
+        FindPopup.Closed += (_, _) =>
+        {
+            if (_ready) Post(new { type = BridgeMessages.Find, query = "", direction = 1 });
         };
         _watcher.ExternalChanged += (_, _) => DispatcherQueue.TryEnqueue(OnExternalChanged);
         _watcher.ExternalDeleted += (_, _) => DispatcherQueue.TryEnqueue(() => ShowBar("文件已被外部删除"));
-        Activated += async (_, e) => { if (e.WindowActivationState != WindowActivationState.Deactivated) await SendThemeAsync(); };
+        Activated += (_, e) => { if (e.WindowActivationState != WindowActivationState.Deactivated) SendTheme(); };
 
         // XAML 侧快捷键只在焦点落在 XAML 元素（如查找框）时生效；
         // 焦点在 WebView2 内时由内核捕获按键后经 "accelerator" 消息分发到同一张表
@@ -80,10 +92,17 @@ public sealed partial class MainWindow : Window
     private static int LiveWindows;
     private bool _initStarted;
 
-    // ---------- 性能日志（%TEMP%\maber-perf.log）----------
+    // ---------- 性能日志（Debug 构建默认开；Release 需设 MABER_PERF=1）----------
+    private static readonly bool PerfEnabled =
+#if DEBUG
+        true;
+#else
+        Environment.GetEnvironmentVariable("MABER_PERF") == "1";
+#endif
     private static readonly object PerfLock = new();
     private static void Perf(string msg)
     {
+        if (!PerfEnabled) return;
         try
         {
             lock (PerfLock)
@@ -160,6 +179,7 @@ public sealed partial class MainWindow : Window
         Web.CoreWebView2.Navigate("http://app.localhost/index.html");
         await _webReady.Task; // 等 Web 监听器就绪，避免首条 loadDocument 丢失
         Perf("init:web-ready");
+        if (!_ready) return;  // 导航失败时页面是错误页，继续加载文档没有意义
         if (path is null) { EmptyState.IsOpen = true; return; }
         await LoadFileAsync(path);
         Perf("init:document-loaded");
@@ -171,8 +191,16 @@ public sealed partial class MainWindow : Window
         var picker = new Windows.Storage.Pickers.FileOpenPicker();
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         foreach (var ext in new[] { ".md", ".markdown", ".txt" }) picker.FileTypeFilter.Add(ext);
-        var file = await picker.PickSingleFileAsync();
-        if (file is not null) await LoadFileAsync(file.Path);
+        try
+        {
+            var file = await picker.PickSingleFileAsync();
+            if (file is not null) await LoadFileAsync(file.Path);
+        }
+        catch (Exception ex)
+        {
+            Perf($"open:error {ex.GetType().Name} {ex.Message}");
+            ShowBar($"打开文件失败：{ex.Message}");
+        }
     }
 
     private async Task LoadFileAsync(string path)
@@ -181,16 +209,24 @@ public sealed partial class MainWindow : Window
         _doc = await _files.LoadAsync(path);
         _currentText = _doc.Value.Text;
         _dirty = false;
-        _sourceMode = false;
-        ModeBadge.Text = "阅读";
+        _outline = new();          // 新大纲到达前不要展示上一个文件的
         _watcher.Attach(path);
         TitleText.Text = Path.GetFileName(path);
         // 文档内相对资源的伺服根目录（WebResourceRequested 处理器读取）
         _contentDir = Path.GetDirectoryName(Path.GetFullPath(path));
+        PostDocument();
+    }
+
+    /// <summary>统一的文档下发：所有路径都带 contentBase，并把两侧模式状态拉回阅读态</summary>
+    private void PostDocument()
+    {
+        if (_doc is null) return;
+        _sourceMode = false;
+        ModeBadge.Text = "阅读";
         Post(new
         {
             type = BridgeMessages.LoadDocument,
-            name = Path.GetFileName(path),
+            name = Path.GetFileName(_doc.Value.Path),
             content = _currentText,
             contentBase = $"http://{ContentHost}/",
         });
@@ -215,25 +251,33 @@ public sealed partial class MainWindow : Window
         var deferral = e.GetDeferral(); // 处理器内有异步 IO，挂起完成直到响应就绪
         try
         {
-            if (_env is null || _contentDir is null)
+            var env = _env;
+            var dir = _contentDir; // 快照：切换文档后，旧文档的在途请求不要解析到新目录
+            if (env is null || dir is null)
             {
-                e.Response = _env?.CreateWebResourceResponse(null, 404, "Not Found", "");
+                e.Response = env?.CreateWebResourceResponse(null, 404, "Not Found", "");
                 return;
             }
             var uri = new Uri(e.Request.Uri);
             var rel = Uri.UnescapeDataString(uri.AbsolutePath).TrimStart('/');
-            var full = Path.GetFullPath(Path.Combine(_contentDir, rel));
-            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_contentDir)) + Path.DirectorySeparatorChar;
+            var full = Path.GetFullPath(Path.Combine(dir, rel));
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(dir)) + Path.DirectorySeparatorChar;
             if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
             {
                 Perf($"res:404 {rel}");
-                e.Response = _env.CreateWebResourceResponse(null, 404, "Not Found", "");
+                e.Response = env.CreateWebResourceResponse(null, 404, "Not Found", "");
+                return;
+            }
+            if (new FileInfo(full).Length > MaxResourceBytes)
+            {
+                Perf($"res:413 {rel}");
+                e.Response = env.CreateWebResourceResponse(null, 413, "Payload Too Large", "");
                 return;
             }
             var mime = MimeByExt.TryGetValue(Path.GetExtension(full), out var m) ? m : "application/octet-stream";
             var bytes = await File.ReadAllBytesAsync(full);
             var stream = new MemoryStream(bytes).AsRandomAccessStream(); // WinRT 响应要求 IRandomAccessStream
-            e.Response = _env.CreateWebResourceResponse(stream, 200, "OK",
+            e.Response = env.CreateWebResourceResponse(stream, 200, "OK",
                 $"Content-Type: {mime}\r\nCache-Control: no-store");
         }
         catch (Exception ex)
@@ -247,17 +291,27 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private const long MaxResourceBytes = 64 * 1024 * 1024; // 单文件资源上限，避免整读超大文件顶高内存
+
     private async Task SaveAsync()
     {
         if (_doc is null) return;
-        _watcher.SuspendOnce();
-        await _files.SaveAsync(_doc.Value.Path, _currentText, _doc.Value.EncodingName, _doc.Value.HasBom);
-        _dirty = false;
+        try
+        {
+            _watcher.SuspendOnce();
+            await _files.SaveAsync(_doc.Value.Path, _currentText, _doc.Value.EncodingName, _doc.Value.HasBom);
+            _dirty = false;
+        }
+        catch (Exception ex)
+        {
+            Perf($"save:error {ex.GetType().Name} {ex.Message}");
+            ShowBar($"保存失败：{ex.Message}");
+        }
     }
 
     // ---------- wikilink 跳转 ----------
     // 在新窗口打开链接目标；解析支持绝对路径与相对路径
-    private async Task OpenWikilinkAsync(string target)
+    private void OpenWikilink(string target)
     {
         if (_doc is null || string.IsNullOrWhiteSpace(target)) return;
         var resolved = ResolveWikilink(_doc.Value.Path, target);
@@ -267,7 +321,6 @@ public sealed partial class MainWindow : Window
         Perf("wikilink:ctor-done");
         window.Activate();
         Perf("wikilink:activate-called");
-        await Task.CompletedTask;
     }
 
     /// <summary>标准 Markdown 相对链接（[text](docs/xx.md)）：剥掉 # 锚点后相对当前文件解析，新窗口打开</summary>
@@ -319,17 +372,26 @@ public sealed partial class MainWindow : Window
     private async void OnExternalChanged()
     {
         if (_doc is null) return;
-        // 竞态兜底：读最新内容；与我们手里的权威文本一致则是自写回声
-        var fresh = await _files.LoadAsync(_doc.Value.Path);
-        if (fresh.Text == _currentText) return;
-        if (!_dirty)
+        try
         {
-            _doc = fresh; _currentText = fresh.Text;
-            Post(new { type = BridgeMessages.LoadDocument, name = Path.GetFileName(_doc.Value.Path), content = _currentText });
+            // 竞态兜底：读最新内容；与我们手里的权威文本一致则是自写回声
+            var fresh = await _files.LoadAsync(_doc.Value.Path);
+            if (fresh.Text == _currentText) return;
+            if (!_dirty)
+            {
+                _doc = fresh; _currentText = fresh.Text;
+                PostDocument();
+            }
+            else
+            {
+                ShowBar("文件已被外部修改，你有未保存的更改");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            ShowBar("文件已被外部修改，你有未保存的更改");
+            // async void：任何漏出的异常都会掀掉进程
+            Perf($"external:error {ex.GetType().Name} {ex.Message}");
+            ShowBar("读取外部修改失败，文件可能已被移动或删除");
         }
     }
 
@@ -337,10 +399,18 @@ public sealed partial class MainWindow : Window
     {
         ExternalBar.IsOpen = false;
         if (_doc is null) return;
-        var fresh = await _files.LoadAsync(_doc.Value.Path);
-        _doc = fresh; _dirty = false;
-        _currentText = fresh.Text;
-        Post(new { type = BridgeMessages.LoadDocument, name = Path.GetFileName(_doc.Value.Path), content = _currentText });
+        try
+        {
+            _doc = await _files.LoadAsync(_doc.Value.Path);
+            _dirty = false;
+            _currentText = _doc.Value.Text;
+            PostDocument();
+        }
+        catch (Exception ex)
+        {
+            Perf($"reload:error {ex.GetType().Name} {ex.Message}");
+            ShowBar("重新加载失败，文件可能已被删除");
+        }
     }
 
     private void ShowBar(string msg)
@@ -352,46 +422,54 @@ public sealed partial class MainWindow : Window
     // ---------- 桥接 ----------
     private void OnWebMessage(object sender, Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
     {
-        using var json = JsonDocument.Parse(e.WebMessageAsJson);
-        var type = json.RootElement.GetProperty("type").GetString();
-        switch (type)
+        try
         {
-            case BridgeMessages.Ready:
-                Perf("web:main-ready"); // 内核 JS 真正跑起来的标志（区别于错误页也会触发的 NavigationCompleted）
-                _ready = true;
-                _webReady.TrySetResult();
-                _ = SendThemeAsync();
-                break;
-            case BridgeMessages.Accelerator:
-                if (_accelerators.TryGetValue(json.RootElement.GetProperty("key").GetString() ?? "", out var action))
-                    action();
-                break;
-            case BridgeMessages.CheckboxToggled:
-                ToggleTaskLine(json.RootElement.GetProperty("line").GetInt32(), json.RootElement.GetProperty("checked").GetBoolean());
-                _ = SaveAsync();
-                break;
-            case BridgeMessages.ContentChanged:
-                _currentText = json.RootElement.GetProperty("content").GetString() ?? _currentText;
-                _dirty = true;
-                break;
-            case BridgeMessages.OutlineChanged:
-                _outline = json.RootElement.GetProperty("items").EnumerateArray()
-                    .Select(i => (i.GetProperty("level").GetInt32(), i.GetProperty("text").GetString() ?? "", i.GetProperty("line").GetInt32()))
-                    .ToList();
-                break;
-            case BridgeMessages.OpenLink:
-                var href = json.RootElement.GetProperty("href").GetString() ?? "";
-                if (href.StartsWith("http://") || href.StartsWith("https://"))
-                    _ = Launcher.LaunchUriAsync(new Uri(href));
-                else if (!href.StartsWith("#"))
-                    OpenLocalMarkdownLink(href);
-                break;
-            case BridgeMessages.OpenWikilink:
-                _ = OpenWikilinkAsync(json.RootElement.GetProperty("target").GetString() ?? "");
-                break;
-            case "diag":
-                Perf($"web:{json.RootElement.GetProperty("text").GetString()}");
-                break;
+            using var json = JsonDocument.Parse(e.WebMessageAsJson);
+            var type = json.RootElement.GetProperty("type").GetString();
+            switch (type)
+            {
+                case BridgeMessages.Ready:
+                    Perf("web:main-ready"); // 内核 JS 真正跑起来的标志（区别于错误页也会触发的 NavigationCompleted）
+                    _ready = true;
+                    _webReady.TrySetResult();
+                    SendTheme();
+                    break;
+                case BridgeMessages.Accelerator:
+                    if (_accelerators.TryGetValue(json.RootElement.GetProperty("key").GetString() ?? "", out var action))
+                        action();
+                    break;
+                case BridgeMessages.CheckboxToggled:
+                    ToggleTaskLine(json.RootElement.GetProperty("line").GetInt32(), json.RootElement.GetProperty("checked").GetBoolean());
+                    _ = SaveAsync();
+                    break;
+                case BridgeMessages.ContentChanged:
+                    _currentText = json.RootElement.GetProperty("content").GetString() ?? _currentText;
+                    _dirty = true;
+                    break;
+                case BridgeMessages.OutlineChanged:
+                    _outline = json.RootElement.GetProperty("items").EnumerateArray()
+                        .Select(i => (i.GetProperty("level").GetInt32(), i.GetProperty("text").GetString() ?? "", i.GetProperty("line").GetInt32()))
+                        .ToList();
+                    break;
+                case BridgeMessages.OpenLink:
+                    var href = json.RootElement.GetProperty("href").GetString() ?? "";
+                    if (href.StartsWith("http://") || href.StartsWith("https://"))
+                        _ = Launcher.LaunchUriAsync(new Uri(href));
+                    else if (!href.StartsWith("#"))
+                        OpenLocalMarkdownLink(href);
+                    break;
+                case BridgeMessages.OpenWikilink:
+                    OpenWikilink(json.RootElement.GetProperty("target").GetString() ?? "");
+                    break;
+                case BridgeMessages.Diag:
+                    Perf($"web:{json.RootElement.GetProperty("text").GetString()}");
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            // 协议消息畸形或内核脚本异常都不应掀掉窗口
+            Perf($"bridge:error {ex.GetType().Name} {ex.Message}");
         }
     }
 
@@ -407,14 +485,13 @@ public sealed partial class MainWindow : Window
     }
 
     // ---------- 主题跟随系统 ----------
-    private async Task SendThemeAsync()
+    private void SendTheme()
     {
         if (!_ready) return;
         var light = Microsoft.Win32.Registry.GetValue(
             @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
             "AppsUseLightTheme", 1) is int v && v == 1;
         Post(new { type = BridgeMessages.SetTheme, theme = light ? "light" : "dark" });
-        await Task.CompletedTask;
     }
 
     // ---------- 快捷键 ----------

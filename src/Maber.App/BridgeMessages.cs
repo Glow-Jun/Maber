@@ -18,4 +18,5 @@ public static class BridgeMessages
     public const string ContentChanged = "contentChanged";
     public const string OpenLink = "openLink";
     public const string OpenWikilink = "openWikilink";
+    public const string Diag = "diag";
 }
