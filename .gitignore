@@ -1,0 +1,20 @@
+# Build outputs
+bin/
+obj/
+out/
+publish/
+
+# Web build artifacts (source in src/Maber.Web, dist embedded into App)
+node_modules/
+dist/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+Desktop.ini
