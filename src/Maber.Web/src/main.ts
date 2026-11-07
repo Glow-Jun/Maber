@@ -1,6 +1,6 @@
 import "./styles/theme.css";
 import "./styles/app.css";
-import { buildRenderer } from "./renderer";
+import { buildRenderer, preserveIndent } from "./renderer";
 import { obsidianPlugins } from "./obsidian";
 import { mathPlugin } from "./math";
 import { hydrateMermaid, setMermaidTheme } from "./mermaid";
@@ -31,7 +31,7 @@ const editor = new SourceEditor(document.querySelector<HTMLElement>("#editor-hos
 function renderDocument(text: string) {
   currentText = text;
   const env: Record<string, unknown> = {};
-  content.innerHTML = md.render(text, env);
+  content.innerHTML = md.render(preserveIndent(text), env);
   injectTaskMarkers(content);
   hydrateMermaid(content);
   send({ type: "outlineChanged", items: extractOutline(content) });

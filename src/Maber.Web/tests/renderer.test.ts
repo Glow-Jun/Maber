@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRenderer } from "../src/renderer";
+import { buildRenderer, preserveIndent } from "../src/renderer";
 
 describe("renderer base", () => {
   const md = buildRenderer();
@@ -26,5 +26,25 @@ describe("renderer base", () => {
     const env: any = {};
     md.render("---\ntitle: hello\n---\n\nbody\n", env);
     expect(env.frontmatter).toEqual({ title: "hello" });
+  });
+});
+
+describe("preserveIndent", () => {
+  it("keeps continuation-line indentation as unicode spaces", () => {
+    const out = preserveIndent("标题：\n\t缩进内容\n    四空格续行");
+    expect(out).toContain("\u2003缩进内容");
+    expect(out).toContain("\u2002四空格续行");
+    const html = buildRenderer().render(out);
+    expect(html).not.toContain("<pre>"); // 缩进不得变成代码块
+  });
+
+  it("leaves blank-line-separated indented code blocks alone", () => {
+    const src = "段落\n\n    code();\n";
+    expect(preserveIndent(src)).toBe(src);
+  });
+
+  it("does not touch content inside fences", () => {
+    const out = preserveIndent("文字：\n```\n\tkeep raw\n```\n");
+    expect(out).toContain("\tkeep raw");
   });
 });

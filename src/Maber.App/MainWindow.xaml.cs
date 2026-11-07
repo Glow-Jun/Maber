@@ -99,6 +99,7 @@ public sealed partial class MainWindow : Window
 
     private async Task LoadFileAsync(string path)
     {
+        EmptyState.IsOpen = false; // 空状态提示（Ctrl+O 教程卡）打开文件后即收起
         _doc = await _files.LoadAsync(path);
         _currentText = _doc.Value.Text;
         _dirty = false;

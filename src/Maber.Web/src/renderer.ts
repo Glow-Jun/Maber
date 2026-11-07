@@ -72,3 +72,32 @@ export function parseYamlFlat(block: string): Record<string, string> {
   }
   return out;
 }
+
+// 段内续行的行首缩进：Obsidian 会保留，CommonMark 则剥掉（还可能误判成代码块）。
+// 渲染前把续行行首空白替换为 em/en space（非 ASCII 空白，不会被解析器吃掉）：
+// Tab（4 空格宽）→ em space，普通空格 → en space。
+const BLOCK_CONSTRUCT = /^\s*(>|#{1,6}\s|[-*+]\s|\d+[.)]\s|```|~~~)/;
+
+export function preserveIndent(text: string): string {
+  const lines = text.split("\n");
+  let inFence = false;
+  let fenceMarker = "";
+  for (let i = 1; i < lines.length; i++) {
+    const trimmed = lines[i].trimStart();
+    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+      const marker = trimmed.slice(0, 3);
+      if (!inFence) { inFence = true; fenceMarker = marker; }
+      else if (marker === fenceMarker) inFence = false;
+      continue;
+    }
+    if (inFence) continue;
+    const prev = lines[i - 1];
+    if (!prev.trim()) continue;                     // 仅处理续行（上一行非空）
+    if (!/^[ \t]+/.test(lines[i])) continue;
+    if (BLOCK_CONSTRUCT.test(lines[i])) continue;   // 列表/引用/标题等结构行不动
+    lines[i] = lines[i].replace(/^([ \t]+)/, (ws) =>
+      [...ws].map((c) => (c === "\t" ? "\u2003" : "\u2002")).join(""),
+    );
+  }
+  return lines.join("\n");
+}
