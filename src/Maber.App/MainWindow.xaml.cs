@@ -43,6 +43,7 @@ public sealed partial class MainWindow : Window
         {
             _ready = true;
             _webReady.TrySetResult();
+            Perf("web:navigation-completed");
             _ = SendThemeAsync();
         };
         _watcher.ExternalChanged += (_, _) => DispatcherQueue.TryEnqueue(OnExternalChanged);
@@ -69,12 +70,42 @@ public sealed partial class MainWindow : Window
         {
             if (e.WindowActivationState == WindowActivationState.Deactivated || _initStarted) return;
             _initStarted = true;
+            Perf("window:activated");
+            SetDefaultWindowSize();
             _ = InitializeAsync(path);
         };
     }
 
     private static int LiveWindows;
     private bool _initStarted;
+
+    // ---------- 性能日志（%TEMP%\maber-perf.log）----------
+    private static readonly object PerfLock = new();
+    private static void Perf(string msg)
+    {
+        try
+        {
+            lock (PerfLock)
+                File.AppendAllText(Path.Combine(Path.GetTempPath(), "maber-perf.log"),
+                    $"[{DateTime.Now:HH:mm:ss.fff}] T{Environment.CurrentManagedThreadId} {msg}\n");
+        }
+        catch { /* 日志失败不影响功能 */ }
+    }
+
+    /// <summary>默认竖版 5:7（宽:高 = 720:1008 逻辑像素），按 DPI 缩放并夹在显示器工作区内</summary>
+    private void SetDefaultWindowSize()
+    {
+        try
+        {
+            var scale = Root.XamlRoot?.RasterizationScale ?? 1.0;
+            if (scale < 1) scale = 1;
+            var work = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
+            var w = Math.Min((int)(720 * scale), work.Width);
+            var h = Math.Min((int)(1008 * scale), work.Height); // 720:1008 = 5:7
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(w, h));
+        }
+        catch { /* 尺寸设置失败不影响功能 */ }
+    }
 
     private Dictionary<string, Action> _accelerators = new();
 
@@ -88,16 +119,21 @@ public sealed partial class MainWindow : Window
 
     private async Task InitializeAsync(string? path)
     {
+        Perf("init:start");
         await Web.EnsureCoreWebView2Async(await App.GetWebViewEnvironmentAsync());
+        Perf("init:controller-ready");
         Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
             "app.local", Path.Combine(AppContext.BaseDirectory, "wwwroot"),
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
         // 关掉浏览器内置快捷键（Ctrl+F 呼出页内查找、Ctrl+O 呼出打开文件等），统一走我们的分发
         Web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
+        Perf("init:navigate");
         Web.CoreWebView2.Navigate("https://app.local/index.html");
         await _webReady.Task; // 等 Web 监听器就绪，避免首条 loadDocument 丢失
+        Perf("init:web-ready");
         if (path is null) { EmptyState.IsOpen = true; return; }
         await LoadFileAsync(path);
+        Perf("init:document-loaded");
     }
 
     // ---------- 文件 ----------

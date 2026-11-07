@@ -25,5 +25,6 @@ public partial class App : Application
         };
         Main = new MainWindow();
         Main.Activate();
+        _ = GetWebViewEnvironmentAsync(); // 预热 WebView2 环境
     }
 }
