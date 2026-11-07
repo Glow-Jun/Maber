@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../Maber.Web/src/main.ts"],
+  "sourcesContent": ["const app = document.querySelector<HTMLDivElement>(\"#app\")!;\napp.textContent = \"Maber kernel booting\u2026\";\nwindow.chrome?.webview?.postMessage(JSON.stringify({ type: \"ready\" }));\n"],
+  "mappings": "AAAA,IAAMA,EAAM,SAAS,cAA8B,MAAM,EACzDA,EAAI,YAAc,6BAClB,OAAO,QAAQ,SAAS,YAAY,KAAK,UAAU,CAAE,KAAM,OAAQ,CAAC,CAAC",
+  "names": ["app"]
+}

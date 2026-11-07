@@ -1,0 +1,29 @@
+{
+  "name": "maber-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "watch": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6",
+    "@codemirror/lang-markdown": "^6",
+    "@codemirror/language": "^6",
+    "@codemirror/language-data": "^6",
+    "@codemirror/search": "^6",
+    "@codemirror/state": "^6",
+    "@codemirror/view": "^6",
+    "katex": "^0.16",
+    "markdown-it": "^14",
+    "mermaid": "^11"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14",
+    "esbuild": "^0.25",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
+}
