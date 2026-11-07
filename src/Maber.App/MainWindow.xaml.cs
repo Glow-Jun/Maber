@@ -34,10 +34,17 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         ModeBadge.Text = "阅读";
+        ApplyChromeTheme();
 
         // 所有窗口都关掉后退出进程，避免无窗口的后台残留
         Interlocked.Increment(ref LiveWindows);
-        Closed += (_, _) => { _watcher.Dispose(); if (Interlocked.Decrement(ref LiveWindows) == 0) Environment.Exit(0); };
+        Closed += (_, _) =>
+        {
+            SettingsHost.Changed -= OnSettingsChanged;
+            _watcher.Dispose();
+            if (Interlocked.Decrement(ref LiveWindows) == 0) Environment.Exit(0);
+        };
+        SettingsHost.Changed += OnSettingsChanged;
 
         Web.WebMessageReceived += OnWebMessage;
         Web.NavigationCompleted += (_, e) =>
@@ -484,14 +491,29 @@ public sealed partial class MainWindow : Window
         _dirty = true;
     }
 
-    // ---------- 主题跟随系统 ----------
+    // ---------- 主题与设置 ----------
+    /// <summary>WinUI 侧（标题栏/弹层/对话框）跟随设置；system 交给系统默认</summary>
+    private void ApplyChromeTheme()
+    {
+        if (Content is not FrameworkElement root) return;
+        root.RequestedTheme = SettingsHost.Current.Theme switch
+        {
+            "light" => ElementTheme.Light,
+            "dark" => ElementTheme.Dark,
+            _ => ElementTheme.Default,
+        };
+    }
+
+    private void OnSettingsChanged(object? s, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
+    {
+        ApplyChromeTheme();
+        SendTheme();
+    });
+
     private void SendTheme()
     {
         if (!_ready) return;
-        var light = Microsoft.Win32.Registry.GetValue(
-            @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-            "AppsUseLightTheme", 1) is int v && v == 1;
-        Post(new { type = BridgeMessages.SetTheme, theme = light ? "light" : "dark" });
+        Post(new { type = BridgeMessages.SetTheme, theme = SettingsHost.ResolveTheme() });
     }
 
     // ---------- 快捷键 ----------
