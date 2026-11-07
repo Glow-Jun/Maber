@@ -56,9 +56,16 @@ function addWikilinkRule(md: MarkdownIt) {
     const open = isEmbed ? start + 3 : start + 2;
     const close = src.indexOf("]]", open);
     if (close === -1) return false;
-    const raw = src.slice(open, close).replace(/\\/g, "");
-    const [targetRaw, alias] = raw.split("|");
-    const target = targetRaw.split("#")[0].trim();
+    const raw = src.slice(open, close);
+    // 只还原 \| 与 \\ 转义：整体删反斜杠会把 Windows 路径 [[C:\a.md]] 变成 C:a.md
+    const unescape = (s: string) => s.replace(/\\([|\\])/g, "$1");
+    let sep = -1;
+    for (let k = 0; k < raw.length; k++) {
+      if (raw[k] === "\\") { k++; continue; }
+      if (raw[k] === "|") { sep = k; break; }
+    }
+    const target = unescape(sep === -1 ? raw : raw.slice(0, sep)).split("#")[0].trim();
+    const alias = sep === -1 ? undefined : unescape(raw.slice(sep + 1));
     if (!target && !alias) return false;
 
     if (!silent) {
@@ -129,13 +136,18 @@ function addCalloutRule(md: MarkdownIt) {
 
       // 首行已被标题占用，剩余行（软换行续行）留作正文首段
       const rest = firstNl === -1 ? "" : inline.content.slice(firstNl + 1);
+      const prev = tokens[inlineIdx - 1];
+      const next = tokens[inlineIdx + 1];
+      const wrapped = prev?.type === "paragraph_open" && next?.type === "paragraph_close";
       if (rest.trim()) {
         const bodyText = new state.Token("text", "", 0);
         bodyText.content = rest;
         inline.children = [bodyText];
         inline.content = rest;
-        tokens.splice(inlineIdx, 0, titleOpen, titleInline, titleClose);
-      } else if (tokens[inlineIdx - 1]?.type === "paragraph_open" && tokens[inlineIdx + 1]?.type === "paragraph_close") {
+        // 标题必须落在原段落之外，否则会渲染出 <p><div class="callout-title">…</div>正文</p>：
+        // 非法嵌套被浏览器自动修复后，正文变成裸文本节点，折叠样式（只匹配元素）就藏不住它
+        tokens.splice(wrapped ? inlineIdx - 1 : inlineIdx, 0, titleOpen, titleInline, titleClose);
+      } else if (wrapped) {
         // 首段整体即标题：整段替换为标题三连
         tokens.splice(inlineIdx - 1, 3, titleOpen, titleInline, titleClose);
       } else {

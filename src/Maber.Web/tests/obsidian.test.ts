@@ -12,6 +12,24 @@ describe("obsidian syntax", () => {
     expect(html).toContain("折叠标题");
   });
 
+  it("callout with body keeps title outside the paragraph", () => {
+    const html = md().render("> [!note] 标题\n> 正文内容\n");
+    // 标题若被塞进 <p> 内会渲染成 <p><div>…</div>正文</p>，浏览器修复后折叠样式失效
+    expect(html).not.toMatch(/<p>\s*<div class="callout-title"/);
+    expect(html).toContain('<div class="callout-title">标题</div>');
+    expect(html).toContain("<p>正文内容</p>");
+  });
+
+  it("wikilink keeps Windows path backslashes", () => {
+    const html = md().render("[[C:\\Users\\a.md]]");
+    expect(html).toContain('data-target="C:\\Users\\a.md"');
+  });
+
+  it("wikilink escaped pipe stays inside target", () => {
+    const html = md().render("[[a\\|b.png]]");
+    expect(html).toContain('data-target="a|b.png"');
+  });
+
   it("==highlight== becomes mark", () => {
     expect(md().render("==亮了==")).toContain("<mark>亮了</mark>");
   });

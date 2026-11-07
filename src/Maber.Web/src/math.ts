@@ -15,11 +15,9 @@ export function mathPlugin(md: MarkdownIt): MarkdownIt {
     const start = state.pos;
     if (state.src[start] !== "$") return false;
     if (state.src[start - 1] === "\\") return false;
-    // $ 后不允许直接空白（排除 "价格 $ 5"），$ 前一位若是数字则排除（排除 100$ 买）
+    // $ 后不允许直接空白（排除 "价格 $ 5"）
     const after = state.src[start + 1];
     if (after === undefined || /\s/.test(after)) return false;
-    const before = start === 0 ? "" : state.src[start - 1];
-    if (/\d/.test(before) && !silent) { /* fallthrough：允许 100$ 的场景由闭合计价 */ }
 
     let end = start + 1;
     let found = -1;

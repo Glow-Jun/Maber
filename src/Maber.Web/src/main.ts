@@ -6,7 +6,7 @@ import { mathPlugin } from "./math";
 import { hydrateMermaid, setMermaidTheme } from "./mermaid";
 import { extractOutline } from "./outline";
 import type { SourceEditor } from "./editor"; // 仅类型；实现按需动态 import，CodeMirror+语言包不进启动包
-import { find } from "./search";
+import { find, clearFind } from "./search";
 import { send, onHostMessage } from "./bridge";
 import type { AcceleratorKey, ViewMode } from "./types";
 
@@ -41,6 +41,7 @@ async function ensureEditor(): Promise<SourceEditor> {
 
 function renderDocument(text: string) {
   currentText = text;
+  clearFind(content); // 先拆掉旧高亮，search 模块持有的 hits 引用随之失效
   const env: Record<string, unknown> = {};
   content.innerHTML = md.render(preserveIndent(text), env);
   injectTaskMarkers(content);
@@ -53,7 +54,7 @@ function renderDocument(text: string) {
   if (fm && Object.keys(fm).length) {
     fmBox.classList.remove("hidden");
     fmBox.innerHTML = Object.entries(fm)
-      .map(([k, v]) => `<span class="fm-item"><b>${k}</b> ${escapeHtml(v)}</span>`)
+      .map(([k, v]) => `<span class="fm-item"><b>${escapeHtml(k)}</b> ${escapeHtml(v)}</span>`)
       .join("");
   } else {
     fmBox.classList.add("hidden");
@@ -91,9 +92,9 @@ async function setMode(next: ViewMode) {
     (await ensureEditor()).show(currentText);
     content.style.display = "none";
   } else {
-    const text = editor?.hide() ?? "";
+    const text = editor?.hide() ?? currentText;
     content.style.display = "";
-    if (text) renderDocument(text);
+    renderDocument(text); // 空文档也要重渲染，否则清空全文后会继续显示旧内容
   }
   // 清掉残留 scrollTop：源码态 #app overflow hidden，残留会让编辑器整体偏移
   document.querySelector("#app")!.scrollTop = 0;
@@ -103,6 +104,11 @@ async function setMode(next: ViewMode) {
 // 任务复选框点击 → 通知宿主写回源文件
 content.addEventListener("click", (e) => {
   const t = e.target as HTMLElement;
+  const calloutTitle = t.closest(".callout-title");
+  if (calloutTitle) {
+    // 折叠态 callout 点标题展开/收起（样式侧 .expanded 已就位，此前没有任何代码去切换它）
+    calloutTitle.closest("[data-collapsed]")?.classList.toggle("expanded");
+  }
   if (t.classList.contains("task-marker")) {
     const item = t.closest("[data-line][data-checked]")!;
     const checked = item.getAttribute("data-checked") !== "true";
@@ -125,10 +131,10 @@ onHostMessage((msg) => {
   switch (msg.type) {
     case "loadDocument":
       currentText = msg.content;
-      contentBase = msg.contentBase ?? "";
+      if (msg.contentBase !== undefined) contentBase = msg.contentBase;
       // 宿主加载文件后总是回到阅读模式，两侧状态对齐
-      if (editor?.visible) {
-        editor.hide();
+      if (mode !== "render") {
+        editor?.hide();
         content.style.display = "";
         mode = "render";
         document.body.dataset.mode = "render";
@@ -136,16 +142,31 @@ onHostMessage((msg) => {
       renderDocument(msg.content);
       break;
     case "setMode": setMode(msg.mode); break;
-    case "setTheme":
+    case "setTheme": {
+      const changed = document.body.dataset.theme !== msg.theme;
       document.body.dataset.theme = msg.theme;
       setMermaidTheme(msg.theme);
+      // 已渲染的 SVG 不会自动换色，主题真的变了就整篇重绘一次（保留滚动位置）
+      if (changed && content.querySelector(".mermaid-diagram")) {
+        const appEl = document.querySelector<HTMLElement>("#app")!;
+        const top = appEl.scrollTop;
+        renderDocument(currentText);
+        appEl.scrollTop = top;
+      }
       break;
+    }
     case "scrollToHeading": {
       const el = content.querySelector(`[data-line="${msg.line}"]`);
       el?.scrollIntoView({ block: "start", behavior: "smooth" });
       break;
     }
     case "find":
+      if (!msg.query) {
+        // 关闭查找框：清掉两种模式下的高亮
+        clearFind(content);
+        editor?.clearFind();
+        break;
+      }
       if (editor?.visible) editor.find(msg.query, msg.direction);
       else find(content, msg.query, msg.direction);
       break;
@@ -180,5 +201,4 @@ window.addEventListener(
 );
 
 // 给宿主的取源入口
-(window as any).__maber = { getSource: () => currentText };
 send({ type: "ready" });

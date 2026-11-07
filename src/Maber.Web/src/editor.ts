@@ -89,6 +89,12 @@ export class SourceEditor {
     view.focus();
   }
 
+  /** 关闭查找框时清掉高亮（空 query 会让 findField 返回 Decoration.none） */
+  clearFind() {
+    if (!this.view) return;
+    this.view.dispatch({ effects: setFindQuery.of("") });
+  }
+
   hide(): string {
     if (!this.view) return "";
     const text = this.view.state.doc.toString();

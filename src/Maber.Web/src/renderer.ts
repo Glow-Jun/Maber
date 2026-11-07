@@ -16,22 +16,21 @@ export function buildRenderer(): MarkdownIt {
 
   // 任务列表：list_item_open 检测首行 `- [ ]`/`- [x]`，打 class/data-* 标记
   // 注：StateCore 没有 bMarks/eMarks（那是 block 级字段），从 src 按行取。
-  const srcLine = (src: string, i: number): string => {
-    let start = 0;
-    for (let k = 0; k < i; k++) {
-      const nl = src.indexOf("\n", start);
-      if (nl === -1) return "";
-      start = nl + 1;
-    }
-    const end = src.indexOf("\n", start);
-    return src.slice(start, end === -1 ? src.length : end);
-  };
+  // 行起点表只建一次，避免每个列表项都从文档头线性扫描（长文档 O(n²)）。
   md.core.ruler.push("maber_task_items", (state) => {
+    const src = state.src;
+    const starts = [0];
+    for (let i = 0; i < src.length; i++) if (src[i] === "\n") starts.push(i + 1);
+    const lineAt = (n: number): string => {
+      if (n < 0 || n >= starts.length) return "";
+      const end = n + 1 < starts.length ? starts[n + 1] - 1 : src.length;
+      return src.slice(starts[n], end);
+    };
     for (let i = 0; i < state.tokens.length; i++) {
       const tok = state.tokens[i];
       if (tok.type !== "list_item_open" || !tok.map) continue;
       const lineStart = tok.map[0];
-      const line = srcLine(state.src, lineStart);
+      const line = lineAt(lineStart);
       const m = /^(\s*[-*+]\s+)\[( |x|X)\](\s+)/.exec(line);
       if (!m) continue;
       tok.attrJoin("class", "task");
