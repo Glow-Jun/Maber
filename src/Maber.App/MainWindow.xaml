@@ -28,10 +28,54 @@
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
-      <!-- Total Mode 侧栏（Task 4 填充内容） -->
+      <!-- Total Mode 侧栏：大纲 / 最近 / 速查 + 设置入口 -->
       <Border x:Name="Sidebar" Grid.Column="0" Width="240" Visibility="Collapsed"
               Background="{ThemeResource LayerFillColorDefaultBrush}"
-              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0"/>
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+          </Grid.RowDefinitions>
+
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Margin="8,8,8,4">
+            <ToggleButton x:Name="TabOutline" Content="大纲" IsChecked="True" FontSize="12"
+                          Padding="8,4" Click="OnSidebarTab"/>
+            <ToggleButton x:Name="TabRecent" Content="最近" FontSize="12"
+                          Padding="8,4" Click="OnSidebarTab"/>
+            <ToggleButton x:Name="TabCheat" Content="速查" FontSize="12"
+                          Padding="8,4" Click="OnSidebarTab"/>
+          </StackPanel>
+
+          <Grid Grid.Row="1">
+            <ListView x:Name="SidebarOutline" IsItemClickEnabled="True" ItemClick="SidebarOutline_ItemClick"/>
+            <ListView x:Name="SidebarRecent" Visibility="Collapsed" IsItemClickEnabled="True"
+                      ItemClick="SidebarRecent_ItemClick"/>
+            <ScrollViewer x:Name="CheatScroll" Visibility="Collapsed" Padding="12,4,12,12" FontSize="12"
+                          VerticalScrollBarVisibility="Auto">
+              <StackPanel x:Name="CheatPanel" Spacing="7">
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"># 标题</Run><Run>  H1–H6</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">**粗体**</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">*斜体*</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">~~删除线~~</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">==高亮==</Run><Run>  段内换行即换行</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">- 列表</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">1. 序号</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">- [ ] 任务</Run><Run>  点击方框即写回</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">&gt; 引用</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">&gt; [!note] callout</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">`行内代码`</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">```代码块```</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">| 表格 |</Run><Run>  支持表头与对齐</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">[[wikilink]]</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">[[笔记|别名]]</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">![[图片.png]]</Run><Run>  嵌入图片</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">#标签</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">%%注释%%</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">$公式$</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">$$公式$$</Run></TextBlock>
+                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">```mermaid</Run><Run>  流程图 / 时序图</Run></TextBlock>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+
+          <Button x:Name="SettingsButton" Grid.Row="2" Content="设置" Margin="8"
+                  HorizontalAlignment="Stretch"/>
+        </Grid>
+      </Border>
 
       <!-- Source 由代码在虚拟域名映射完成后 Navigate（避免映射前导航失败） -->
       <muxc:WebView2 x:Name="Web" Grid.Column="1"/>

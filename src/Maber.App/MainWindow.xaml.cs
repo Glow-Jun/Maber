@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Maber.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
 
@@ -223,7 +224,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var file = await picker.PickSingleFileAsync();
-            if (file is not null) await LoadFileAsync(file.Path);
+            if (file is not null && await ConfirmDiscardAsync()) await LoadFileAsync(file.Path);
         }
         catch (Exception ex)
         {
@@ -238,7 +239,9 @@ public sealed partial class MainWindow : Window
         _doc = await _files.LoadAsync(path);
         _currentText = _doc.Value.Text;
         _dirty = false;
+        SettingsHost.RecordRecent(_doc.Value.Path);
         _outline = new();          // 新大纲到达前不要展示上一个文件的
+        if (_totalMode) RefreshSidebarOutline();
         _watcher.Attach(path);
         TitleText.Text = Path.GetFileName(path);
         // 文档内相对资源的伺服根目录（WebResourceRequested 处理器读取）
@@ -479,6 +482,7 @@ public sealed partial class MainWindow : Window
                     _outline = json.RootElement.GetProperty("items").EnumerateArray()
                         .Select(i => (i.GetProperty("level").GetInt32(), i.GetProperty("text").GetString() ?? "", i.GetProperty("line").GetInt32()))
                         .ToList();
+                    if (_totalMode) RefreshSidebarOutline();
                     break;
                 case BridgeMessages.OpenLink:
                     var href = json.RootElement.GetProperty("href").GetString() ?? "";
@@ -530,6 +534,7 @@ public sealed partial class MainWindow : Window
     {
         ApplyChromeTheme();
         SendTheme();
+        RefreshRecentList();
     });
 
     private void SendTheme()
@@ -564,19 +569,123 @@ public sealed partial class MainWindow : Window
         OutlinePopup.IsOpen = false;
     }
 
+    private void SidebarOutline_ItemClick(object s, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is TextBlock tb && tb.Tag is int line)
+            Post(new { type = BridgeMessages.ScrollToHeading, line });
+    }
+
     private void ShowOutline()
     {
         if (!_ready || _doc is null) return;
-        OutlineList.Items.Clear();
-        foreach (var (level, text, line) in _outline)
+        if (_totalMode)
         {
-            var tb = new TextBlock { Text = text, Tag = line, TextTrimming = TextTrimming.CharacterEllipsis };
-            tb.Margin = new Thickness((level - 1) * 14, 4, 0, 4);
-            OutlineList.Items.Add(tb);
+            Sidebar.Visibility = Visibility.Visible;
+            SelectSidebarTab(TabOutline);
+            RefreshSidebarOutline();
+            return;
         }
+        FillOutline(OutlineList, _outline, 14);
         OutlinePopup.HorizontalOffset = Math.Max(0, Root.ActualWidth - 300);
         OutlinePopup.VerticalOffset = 44;
         OutlinePopup.IsOpen = true;
+    }
+
+    private void RefreshSidebarOutline()
+    {
+        if (!_totalMode) return;
+        FillOutline(SidebarOutline, _outline, 12);
+        if (SidebarOutline.Items.Count == 0)
+            SidebarOutline.Items.Add(new TextBlock { Text = "当前文档暂无标题", Opacity = 0.6, Margin = new Thickness(8) });
+    }
+
+    private static void FillOutline(ListView list, IEnumerable<(int level, string text, int line)> items, double indentStep)
+    {
+        list.Items.Clear();
+        foreach (var (level, text, line) in items)
+        {
+            var tb = new TextBlock { Text = text, Tag = line, TextTrimming = TextTrimming.CharacterEllipsis };
+            tb.Margin = new Thickness((level - 1) * indentStep, 4, 0, 4);
+            list.Items.Add(tb);
+        }
+    }
+
+    // ---------- 侧栏分区 ----------
+    private void OnSidebarTab(object sender, RoutedEventArgs e)
+    {
+        var tab = (ToggleButton)sender;
+        SelectSidebarTab(tab);
+        if (tab == TabRecent) RefreshRecentList();
+    }
+
+    private void SelectSidebarTab(ToggleButton tab)
+    {
+        TabOutline.IsChecked = ReferenceEquals(tab, TabOutline);
+        TabRecent.IsChecked = ReferenceEquals(tab, TabRecent);
+        TabCheat.IsChecked = ReferenceEquals(tab, TabCheat);
+        SidebarOutline.Visibility = tab == TabOutline ? Visibility.Visible : Visibility.Collapsed;
+        SidebarRecent.Visibility = tab == TabRecent ? Visibility.Visible : Visibility.Collapsed;
+        CheatScroll.Visibility = tab == TabCheat ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void RefreshRecentList()
+    {
+        if (!_totalMode) return;
+        SidebarRecent.Items.Clear();
+        var files = SettingsHost.Current.RecentFiles;
+        if (files.Count == 0)
+        {
+            SidebarRecent.Items.Add(new TextBlock { Text = "暂无最近文件", Opacity = 0.6, Margin = new Thickness(8) });
+            return;
+        }
+        foreach (var path in files)
+        {
+            var stack = new StackPanel { Margin = new Thickness(4, 2, 4, 2) };
+            stack.Children.Add(new TextBlock
+            {
+                Text = Path.GetFileName(path),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = Path.GetDirectoryName(path),
+                FontSize = 11,
+                Opacity = 0.6,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            stack.Tag = path;
+            SidebarRecent.Items.Add(stack);
+        }
+    }
+
+    private async void SidebarRecent_ItemClick(object s, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not StackPanel item || item.Tag is not string path) return;
+        if (!File.Exists(path))
+        {
+            ShowBar("文件已不存在，已从最近列表移除");
+            SettingsHost.Update(s => s with { RecentFiles = AppSettings.NormalizeRecent(s.RecentFiles) });
+            SettingsHost.Persist();
+            return;
+        }
+        if (!await ConfirmDiscardAsync()) return;
+        await LoadFileAsync(path);
+    }
+
+    /// <summary>切换文件前保护未保存修改（当前文件可能被外部编辑过，不能静默丢）</summary>
+    private async Task<bool> ConfirmDiscardAsync()
+    {
+        if (!_dirty) return true;
+        var dialog = new ContentDialog
+        {
+            XamlRoot = Content.XamlRoot,
+            Title = "未保存的更改",
+            Content = "切换文件会丢失当前未保存的修改。",
+            PrimaryButtonText = "放弃更改",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
     // ---------- 查找 ----------
