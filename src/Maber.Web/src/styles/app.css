@@ -3,6 +3,22 @@
 html, body { margin: 0; height: 100%; }
 #app { height: 100%; overflow-y: auto; scroll-behavior: smooth; }
 
+/* 细滚动条，配色跟主题 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--fg-soft) 40%, transparent);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--fg-soft) 65%, transparent);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
 #content {
   max-width: 46rem; margin: 0 auto;
   padding: 3.5rem 2.5rem 6rem;
@@ -73,7 +89,8 @@ mark.find-hit.current { outline: 2px solid var(--accent); }
 #editor-host { display: none; height: 100%; max-width: 46rem; margin: 0 auto; }
 #editor-host.active { display: block; }
 #editor-host .cm-editor { height: 100%; font-size: 15px; }
-body[data-mode="source"] #app { overflow: hidden; padding-top: 2.5rem; }
+body[data-mode="source"] #app { overflow: hidden; }
+body[data-mode="source"] #editor-host { height: calc(100% - 2.5rem); margin-top: 2.5rem; }
 
 /* 源码模式查找命中 */
 #editor-host .cm-find-hit { background: var(--find-bg); }

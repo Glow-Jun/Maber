@@ -72,6 +72,8 @@ function setMode(next: ViewMode) {
     content.style.display = "";
     if (text) renderDocument(text);
   }
+  // 清掉残留 scrollTop：源码态 #app overflow hidden，残留会让编辑器整体偏移
+  document.querySelector("#app")!.scrollTop = 0;
   document.body.dataset.mode = mode;
 }
 

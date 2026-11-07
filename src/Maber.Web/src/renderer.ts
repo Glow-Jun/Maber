@@ -2,7 +2,8 @@ import MarkdownIt from "markdown-it";
 
 export function buildRenderer(): MarkdownIt {
   // breaks: Obsidian 默认把段内单换行渲染为换行，而非 CommonMark 的软换行
-  const md = new MarkdownIt({ html: true, linkify: true, breaks: true })
+  // linkify 关闭：linkify-it 会把 MOC.md/Map.md 这类 "xx.md" 误判为域名链接；Obsidian 也不自动链裸域名
+  const md = new MarkdownIt({ html: true, linkify: false, breaks: true })
     .enable(["table", "strikethrough"]);
 
   // 标题带源行号（heading_open token.map[0] 即行首）

@@ -51,6 +51,7 @@ public sealed partial class MainWindow : Window
 
         // XAML 侧快捷键只在焦点落在 XAML 元素（如查找框）时生效；
         // 焦点在 WebView2 内时由内核捕获按键后经 "accelerator" 消息分发到同一张表
+        Root.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden; // 关掉悬停弹 "Ctrl+O" tooltip
         _accelerators = new Dictionary<string, Action>
         {
             ["o"] = () => _ = PickOpenFileAsync(),
@@ -63,10 +64,17 @@ public sealed partial class MainWindow : Window
             AddAccelerator((VirtualKey)char.ToUpper(key[0]), action);
 
         var path = initialPath ?? Environment.GetCommandLineArgs().Skip(1).FirstOrDefault(p => File.Exists(p));
-        _ = InitializeAsync(path);
+        // 窗口首次激活（可见）后再初始化 WebView2：不可见时创建控制器是已知慢路径（可达数秒）
+        Activated += (_, e) =>
+        {
+            if (e.WindowActivationState == WindowActivationState.Deactivated || _initStarted) return;
+            _initStarted = true;
+            _ = InitializeAsync(path);
+        };
     }
 
     private static int LiveWindows;
+    private bool _initStarted;
 
     private Dictionary<string, Action> _accelerators = new();
 
@@ -80,7 +88,7 @@ public sealed partial class MainWindow : Window
 
     private async Task InitializeAsync(string? path)
     {
-        await Web.EnsureCoreWebView2Async();
+        await Web.EnsureCoreWebView2Async(await App.GetWebViewEnvironmentAsync());
         Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
             "app.local", Path.Combine(AppContext.BaseDirectory, "wwwroot"),
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
