@@ -129,7 +129,7 @@ public sealed partial class MainWindow : Window
         await Web.EnsureCoreWebView2Async(await App.GetWebViewEnvironmentAsync());
         Perf("init:controller-ready");
         Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
-            "app.local", Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+            "app.localhost", Path.Combine(AppContext.BaseDirectory, "wwwroot"),
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
         // 关掉浏览器内置快捷键（Ctrl+F 呼出页内查找、Ctrl+O 呼出打开文件等），统一走我们的分发
         Web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
@@ -251,6 +251,7 @@ public sealed partial class MainWindow : Window
         switch (type)
         {
             case BridgeMessages.Ready:
+                Perf("web:main-ready"); // 内核 JS 真正跑起来的标志（区别于错误页也会触发的 NavigationCompleted）
                 _ready = true;
                 _webReady.TrySetResult();
                 _ = SendThemeAsync();
