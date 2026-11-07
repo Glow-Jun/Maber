@@ -1,0 +1,2 @@
+import{a,b,c,d,e,f,g,h,i,j,k,l}from"./chunk-6S5IWIZ2.js";import"./chunk-CVZYYABJ.js";import"./chunk-5ZPNQ4GW.js";import"./chunk-RFBBAUMM.js";export{k as autoCloseTags,d as completionPath,l as esLint,j as javascript,f as javascriptLanguage,h as jsxLanguage,c as localCompletionSource,e as scopeCompletionSource,a as snippets,i as tsxLanguage,g as typescriptLanguage,b as typescriptSnippets};
+//# sourceMappingURL=dist-BTAFOJAJ.js.map
