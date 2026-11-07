@@ -7,6 +7,7 @@ import { hydrateMermaid, setMermaidTheme } from "./mermaid";
 import { extractOutline } from "./outline";
 import type { SourceEditor } from "./editor"; // 仅类型；实现按需动态 import，CodeMirror+语言包不进启动包
 import { find, clearFind } from "./search";
+import { applyTypography } from "./typography";
 import { send, onHostMessage } from "./bridge";
 import type { AcceleratorKey, ViewMode } from "./types";
 
@@ -155,6 +156,7 @@ onHostMessage((msg) => {
       }
       break;
     }
+    case "setTypography": applyTypography(msg); break;
     case "scrollToHeading": {
       const el = content.querySelector(`[data-line="${msg.line}"]`);
       el?.scrollIntoView({ block: "start", behavior: "smooth" });
