@@ -26,13 +26,17 @@ public sealed partial class MainWindow : Window
     // 因此用 ready/NavigationCompleted 双信号握手，等待后再发首条文档。
     private readonly TaskCompletionSource _webReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public MainWindow()
+    public MainWindow(string? initialPath = null)
     {
         InitializeComponent();
         Title = "Maber";
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         ModeBadge.Text = "阅读";
+
+        // 所有窗口都关掉后退出进程，避免无窗口的后台残留
+        Interlocked.Increment(ref LiveWindows);
+        Closed += (_, _) => { _watcher.Dispose(); if (Interlocked.Decrement(ref LiveWindows) == 0) Environment.Exit(0); };
 
         Web.WebMessageReceived += OnWebMessage;
         Web.NavigationCompleted += (_, _) =>
@@ -44,7 +48,6 @@ public sealed partial class MainWindow : Window
         _watcher.ExternalChanged += (_, _) => DispatcherQueue.TryEnqueue(OnExternalChanged);
         _watcher.ExternalDeleted += (_, _) => DispatcherQueue.TryEnqueue(() => ShowBar("文件已被外部删除"));
         Activated += async (_, e) => { if (e.WindowActivationState != WindowActivationState.Deactivated) await SendThemeAsync(); };
-        Closed += (_, _) => _watcher.Dispose();
 
         // XAML 侧快捷键只在焦点落在 XAML 元素（如查找框）时生效；
         // 焦点在 WebView2 内时由内核捕获按键后经 "accelerator" 消息分发到同一张表
@@ -59,9 +62,11 @@ public sealed partial class MainWindow : Window
         foreach (var (key, action) in _accelerators)
             AddAccelerator((VirtualKey)char.ToUpper(key[0]), action);
 
-        var keyArgs = Environment.GetCommandLineArgs().Skip(1);
-        _ = InitializeAsync(keyArgs.FirstOrDefault(p => File.Exists(p)));
+        var path = initialPath ?? Environment.GetCommandLineArgs().Skip(1).FirstOrDefault(p => File.Exists(p));
+        _ = InitializeAsync(path);
     }
+
+    private static int LiveWindows;
 
     private Dictionary<string, Action> _accelerators = new();
 
@@ -119,19 +124,24 @@ public sealed partial class MainWindow : Window
     }
 
     // ---------- wikilink 跳转 ----------
-    // v0.1 无 vault 概念：从当前文件目录起逐级向上找 目标[.md/.markdown]（支持 a/b/c 子路径）
+    // 在新窗口打开链接目标；解析支持绝对路径与相对路径
     private async Task OpenWikilinkAsync(string target)
     {
         if (_doc is null || string.IsNullOrWhiteSpace(target)) return;
         var resolved = ResolveWikilink(_doc.Value.Path, target);
         if (resolved is null) { ShowBar($"未找到链接目标「{target}」"); return; }
-        await LoadFileAsync(resolved);
+        var window = new MainWindow(resolved);
+        window.Activate();
+        await Task.CompletedTask;
     }
 
     private static string? ResolveWikilink(string currentPath, string target)
     {
-        var rel = target.Replace('/', Path.DirectorySeparatorChar).Trim();
+        var rel = target.Trim().Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
         string[] candidates = [rel, rel + ".md", rel + ".markdown"];
+        if (Path.IsPathRooted(rel)) return candidates.FirstOrDefault(File.Exists);
+
+        // 相对路径：先当前目录，再逐级向上（覆盖 Obsidian 风格的 vault 相对引用）
         var dir = Path.GetDirectoryName(currentPath);
         for (var depth = 0; depth < 6 && dir is not null; depth++)
         {
