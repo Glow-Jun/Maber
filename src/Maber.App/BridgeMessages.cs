@@ -17,4 +17,5 @@ public static class BridgeMessages
     public const string CheckboxToggled = "checkboxToggled";
     public const string ContentChanged = "contentChanged";
     public const string OpenLink = "openLink";
+    public const string OpenWikilink = "openWikilink";
 }

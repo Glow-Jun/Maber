@@ -15,7 +15,8 @@ export type WebMessage =
   | { type: "outlineChanged"; items: OutlineItem[] }
   | { type: "checkboxToggled"; line: number; checked: boolean }
   | { type: "contentChanged"; content: string }
-  | { type: "openLink"; href: string };
+  | { type: "openLink"; href: string }
+  | { type: "openWikilink"; target: string };
 
 export interface OutlineItem { level: number; text: string; line: number }
 export type ViewMode = "render" | "source";

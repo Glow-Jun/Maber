@@ -118,6 +118,33 @@ public sealed partial class MainWindow : Window
         _dirty = false;
     }
 
+    // ---------- wikilink 跳转 ----------
+    // v0.1 无 vault 概念：从当前文件目录起逐级向上找 目标[.md/.markdown]（支持 a/b/c 子路径）
+    private async Task OpenWikilinkAsync(string target)
+    {
+        if (_doc is null || string.IsNullOrWhiteSpace(target)) return;
+        var resolved = ResolveWikilink(_doc.Value.Path, target);
+        if (resolved is null) { ShowBar($"未找到链接目标「{target}」"); return; }
+        await LoadFileAsync(resolved);
+    }
+
+    private static string? ResolveWikilink(string currentPath, string target)
+    {
+        var rel = target.Replace('/', Path.DirectorySeparatorChar).Trim();
+        string[] candidates = [rel, rel + ".md", rel + ".markdown"];
+        var dir = Path.GetDirectoryName(currentPath);
+        for (var depth = 0; depth < 6 && dir is not null; depth++)
+        {
+            foreach (var name in candidates)
+            {
+                var p = Path.Combine(dir, name);
+                if (File.Exists(p)) return p;
+            }
+            dir = Path.GetDirectoryName(dir);
+        }
+        return null;
+    }
+
     private async void OnExternalChanged()
     {
         if (_doc is null) return;
@@ -183,6 +210,9 @@ public sealed partial class MainWindow : Window
             case BridgeMessages.OpenLink:
                 var href = json.RootElement.GetProperty("href").GetString() ?? "";
                 if (href.StartsWith("http")) _ = Launcher.LaunchUriAsync(new Uri(href));
+                break;
+            case BridgeMessages.OpenWikilink:
+                _ = OpenWikilinkAsync(json.RootElement.GetProperty("target").GetString() ?? "");
                 break;
         }
     }

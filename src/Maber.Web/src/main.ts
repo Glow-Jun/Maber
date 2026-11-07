@@ -88,7 +88,10 @@ content.addEventListener("click", (e) => {
   const link = t.closest("a");
   if (link) {
     e.preventDefault();
-    if (link.classList.contains("wikilink")) return; // v0.1 不跳转
+    if (link.classList.contains("wikilink")) {
+      send({ type: "openWikilink", target: link.getAttribute("data-target") ?? "" });
+      return;
+    }
     send({ type: "openLink", href: link.getAttribute("href") ?? "" });
   }
 });
@@ -97,8 +100,14 @@ onHostMessage((msg) => {
   switch (msg.type) {
     case "loadDocument":
       currentText = msg.content;
-      if (editor.visible) { editor.hide(); editor.show(msg.content); } // SourceEditor.show 幂等不换文档，需先 hide
-      else renderDocument(msg.content);
+      // 宿主加载文件后总是回到阅读模式，两侧状态对齐
+      if (editor.visible) {
+        editor.hide();
+        content.style.display = "";
+        mode = "render";
+        document.body.dataset.mode = "render";
+      }
+      renderDocument(msg.content);
       break;
     case "setMode": setMode(msg.mode); break;
     case "setTheme":
