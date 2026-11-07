@@ -41,5 +41,10 @@ public sealed class FileDocumentService
         {
             File.Move(tmp, path, overwrite: true);
         }
+        finally
+        {
+            // 替换失败时不留临时文件；成功路径下 tmp 已被移动，此处为空操作
+            try { if (File.Exists(tmp)) File.Delete(tmp); } catch (IOException) { }
+        }
     }
 }

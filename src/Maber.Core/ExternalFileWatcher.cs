@@ -34,6 +34,7 @@ public sealed class ExternalFileWatcher : IDisposable
         };
         _fsw.Changed += OnFswEvent;
         _fsw.Renamed += OnFswEvent;
+        _fsw.Error += OnFswError;
         _fsw.EnableRaisingEvents = true;
 
         _poll = new Timer(_ => _ = PollAsync(), null, PollIntervalMs, PollIntervalMs);
@@ -55,9 +56,13 @@ public sealed class ExternalFileWatcher : IDisposable
 
     private void OnFswEvent(object s, FileSystemEventArgs e) => _ = PollAsync();
 
+    /// <summary>缓冲区溢出等错误会让 FSW 静默失效，立刻走一次轮询兜底</summary>
+    private void OnFswError(object s, ErrorEventArgs e) => _ = PollAsync();
+
     private async Task PollAsync()
     {
-        if (_path is null || _suspended) return;
+        // 不要在 gate 外因挂起而 return：那样 _suspended 只能等下一轮才复位
+        if (_path is null) return;
         await _gate.WaitAsync();
         try
         {
