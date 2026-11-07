@@ -5,7 +5,7 @@ import { obsidianPlugins } from "./obsidian";
 import { mathPlugin } from "./math";
 import { hydrateMermaid, setMermaidTheme } from "./mermaid";
 import { extractOutline } from "./outline";
-import { SourceEditor } from "./editor";
+import type { SourceEditor } from "./editor"; // 仅类型；实现按需动态 import，CodeMirror+语言包不进启动包
 import { find } from "./search";
 import { send, onHostMessage } from "./bridge";
 import type { AcceleratorKey, ViewMode } from "./types";
@@ -23,10 +23,20 @@ const fmBox = document.querySelector<HTMLElement>("#frontmatter")!;
 let mode: ViewMode = "render";
 let currentText = "";
 
-const editor = new SourceEditor(document.querySelector<HTMLElement>("#editor-host")!, (text) => {
-  currentText = text; // 始终持有最新源码，供切回渲染与宿主取源
-  send({ type: "contentChanged", content: text });
-});
+let editor: SourceEditor | null = null;
+async function ensureEditor(): Promise<SourceEditor> {
+  if (!editor) {
+    const { SourceEditor: SourceEditorImpl } = await import("./editor");
+    editor = new SourceEditorImpl(
+      document.querySelector<HTMLElement>("#editor-host")!,
+      (text) => {
+        currentText = text; // 始终持有最新源码，供切回渲染与宿主取源
+        send({ type: "contentChanged", content: text });
+      },
+    );
+  }
+  return editor;
+}
 
 function renderDocument(text: string) {
   currentText = text;
@@ -61,14 +71,14 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 }
 
-function setMode(next: ViewMode) {
+async function setMode(next: ViewMode) {
   if (next === mode) return;
   mode = next;
   if (next === "source") {
-    editor.show(currentText);
+    (await ensureEditor()).show(currentText);
     content.style.display = "none";
   } else {
-    const text = editor.hide();
+    const text = editor?.hide() ?? "";
     content.style.display = "";
     if (text) renderDocument(text);
   }
@@ -103,7 +113,7 @@ onHostMessage((msg) => {
     case "loadDocument":
       currentText = msg.content;
       // 宿主加载文件后总是回到阅读模式，两侧状态对齐
-      if (editor.visible) {
+      if (editor?.visible) {
         editor.hide();
         content.style.display = "";
         mode = "render";
@@ -122,7 +132,7 @@ onHostMessage((msg) => {
       break;
     }
     case "find":
-      if (editor.visible) editor.find(msg.query, msg.direction);
+      if (editor?.visible) editor.find(msg.query, msg.direction);
       else find(content, msg.query, msg.direction);
       break;
   }

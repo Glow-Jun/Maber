@@ -28,6 +28,7 @@ public sealed partial class MainWindow : Window
 
     public MainWindow(string? initialPath = null)
     {
+        Perf($"window:ctor {(initialPath is null ? "main" : $"wikilink {Path.GetFileName(initialPath)}")}");
         InitializeComponent();
         Title = "Maber";
         ExtendsContentIntoTitleBar = true;
@@ -92,7 +93,7 @@ public sealed partial class MainWindow : Window
         catch { /* 日志失败不影响功能 */ }
     }
 
-    /// <summary>默认竖版 5:7（宽:高 = 720:1008 逻辑像素），按 DPI 缩放并夹在显示器工作区内</summary>
+    /// <summary>默认竖版 5:7（宽:高），逻辑基准 720×1008；先保证比例，再整体夹进显示器工作区</summary>
     private void SetDefaultWindowSize()
     {
         try
@@ -100,9 +101,14 @@ public sealed partial class MainWindow : Window
             var scale = Root.XamlRoot?.RasterizationScale ?? 1.0;
             if (scale < 1) scale = 1;
             var work = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
-            var w = Math.Min((int)(720 * scale), work.Width);
-            var h = Math.Min((int)(1008 * scale), work.Height); // 720:1008 = 5:7
+            const double ratio = 7.0 / 5.0;              // 高/宽
+            var wLogical = Math.Min(720.0, work.Width / scale);
+            var hLogical = Math.Min(wLogical * ratio, work.Height / scale);
+            wLogical = hLogical / ratio;                  // 高度被夹矮时收宽度，保住 5:7
+            var w = (int)(wLogical * scale);
+            var h = (int)(hLogical * scale);
             AppWindow.Resize(new Windows.Graphics.SizeInt32(w, h));
+            Perf($"window:size {w}x{h} scale={scale:0.##} workArea={work.Width}x{work.Height}");
         }
         catch { /* 尺寸设置失败不影响功能 */ }
     }
@@ -174,8 +180,11 @@ public sealed partial class MainWindow : Window
         if (_doc is null || string.IsNullOrWhiteSpace(target)) return;
         var resolved = ResolveWikilink(_doc.Value.Path, target);
         if (resolved is null) { ShowBar($"未找到链接目标「{target}」"); return; }
+        Perf($"wikilink:clicked target={Path.GetFileName(resolved)}");
         var window = new MainWindow(resolved);
+        Perf("wikilink:ctor-done");
         window.Activate();
+        Perf("wikilink:activate-called");
         await Task.CompletedTask;
     }
 
