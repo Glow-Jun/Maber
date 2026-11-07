@@ -2,7 +2,7 @@
 
 类 Typora 的极简 Markdown 阅读器，为 Obsidian 笔记库优化。WinUI 3 原生壳 + WebView2 渲染内核，原生窗口的轻量与 Web 排版生态兼得。
 
-![status](https://img.shields.io/badge/version-v0.1.1-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
+![status](https://img.shields.io/badge/version-v0.2.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
 
 ## 特性
 
@@ -11,12 +11,19 @@
 - Obsidian 风格渲染：段内单换行即换行、续行缩进保留、`==高亮==`、`%%注释%%`、`#标签`、callout、`[[wikilink]]` 与 `![[嵌入]]`
 - KaTeX 数学公式（`$...$` 与 `$$...$$`）、Mermaid 图表（懒加载，遇到才渲染）
 - frontmatter 以元信息条形式展示，不混入正文
-- 明暗主题跟随系统
+- 明暗主题可跟随系统，也可手动指定
+
+**完整模式（Total Mode）**
+
+- 直接启动进入 Total：左侧栏含大纲 / 最近文件 / 语法速查，`Ctrl+B` 折叠
+- 最近文件自动记录、去重（上限 20），失效路径自动剔除
+- 设置：主题（跟随系统 / 浅色 / 深色）、字体、字号、行高、阅读宽度，改动实时生效并持久化
+- 带文件参数启动仍进入 Slim Mode：无侧栏，保持单文件极简阅读
 
 **导航与编辑**
 
 - `Ctrl+E` 阅读 / 源码双模式（源码为 CodeMirror，带高亮与查找）
-- `Ctrl+K` 大纲悬浮，点击跳转对应标题
+- `Ctrl+K` 大纲：Total 下切到侧栏，Slim 下悬浮弹层，点击跳转对应标题
 - `Ctrl+F` 页内查找，两种模式均支持，Enter / Shift+Enter 循环跳转
 - 任务复选框 `- [ ]` 点击即写回源文件
 
@@ -36,6 +43,7 @@
 | `Ctrl+E` | 阅读 / 源码切换 |
 | `Ctrl+K` | 大纲 |
 | `Ctrl+F` | 页内查找 |
+| `Ctrl+B` | 折叠 / 展开侧栏（仅 Total） |
 
 ## 构建
 
@@ -58,14 +66,17 @@ dotnet run --project src/Maber.App
 ┌─ Maber.App（WinUI 3 壳：窗口 / 文件 / 监视 / 快捷键）
 │    ↕ JSON 消息协议（types.ts / BridgeMessages.cs 双侧对齐）
 ├─ Maber.Web（TS 渲染内核：markdown-it + KaTeX + Mermaid + CodeMirror，esbuild 打包）
-└─ Maber.Core（无 UI 依赖：编码检测、非独占读写、外部修改监视，xunit 覆盖）
+└─ Maber.Core（无 UI 依赖：编码检测、非独占读写、外部修改监视、设置存储，xunit 覆盖）
 ```
 
-## 当前限制（v0.1.1）
+设置与最近文件存放于 `%LOCALAPPDATA%\Maber\settings.json`。
+
+## 当前限制（v0.2.0）
 
 - 无 vault / 工作区概念，wikilink 按当前文件位置逐级向上解析
 - 源码模式为纯编辑器，非所见即所得
 - wikilink 不校验悬空链接；嵌入仅支持图片
+- 暂未支持多标签、wikilink 跨文件解析与 MSIX 打包
 
 ## License
 
