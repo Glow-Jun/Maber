@@ -30,7 +30,7 @@ html, body { margin: 0; height: 100%; }
 #content h2 { font-size: 1.5em; }
 #content h3 { font-size: 1.25em; }
 #content p { margin: .9em 0; }
-#content img { max-width: 100%; }
+#content img { max-width: 100%; display: block; margin: 1em auto; } /* 图片默认居中 */
 #content blockquote {
   margin: 1em 0; padding: .2em 1em;
   border-left: 3px solid var(--border); color: var(--fg-soft);
