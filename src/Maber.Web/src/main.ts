@@ -1,3 +1,5 @@
+import "./styles/theme.css";
+import "./styles/app.css";
 import { buildRenderer } from "./renderer";
 import { obsidianPlugins } from "./obsidian";
 import { mathPlugin } from "./math";

@@ -1,0 +1,13 @@
+/* 主题变量：唯一取色来源，明暗两套，克制低饱和 */
+:root, body[data-theme="light"] {
+  --bg: #fdfdfc; --fg: #1f2328; --fg-soft: #59636e;
+  --accent: #4a7dbe; --border: #e4e7ea;
+  --code-bg: #f4f5f7; --mark-bg: #fff3ad; --find-bg: #ffd54f;
+}
+body[data-theme="dark"] {
+  --bg: #16181d; --fg: #d6d9dd; --fg-soft: #8b929a;
+  --accent: #7aa5d8; --border: #2a2e35;
+  --code-bg: #1e2128; --mark-bg: #5c5321; --find-bg: #8a6d00;
+}
+html { background: var(--bg); }
+body { background: var(--bg); color: var(--fg); }
