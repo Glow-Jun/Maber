@@ -1,0 +1,59 @@
+<Window x:Class="Maber.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+        xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives">
+  <Grid x:Name="Root">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- 极简标题栏：拖拽区 + 文件名 + 模式指示 -->
+    <Grid x:Name="TitleBar" Grid.Row="0" Height="36" Background="Transparent">
+      <Grid x:Name="AppTitleBar" Background="Transparent">
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+          <TextBlock x:Name="TitleText" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+          <TextBlock x:Name="ModeBadge" VerticalAlignment="Center" FontSize="11" Opacity="0.6"/>
+        </StackPanel>
+      </Grid>
+    </Grid>
+
+    <!-- Source 由代码在虚拟域名映射完成后 Navigate（避免映射前导航失败） -->
+    <muxc:WebView2 x:Name="Web" Grid.Row="1"/>
+
+    <!-- 大纲悬浮（Ctrl+K）。Popup 在 Primitives 命名空间（计划的 muxc:Popup 为笔误） -->
+    <primitives:Popup x:Name="OutlinePopup" IsLightDismissEnabled="True">
+      <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+              CornerRadius="10" Padding="8" Width="280" MaxHeight="480">
+        <ScrollViewer>
+          <ListView x:Name="OutlineList" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="OutlineList_ItemClick"/>
+        </ScrollViewer>
+      </Border>
+    </primitives:Popup>
+
+    <!-- 查找悬浮（Ctrl+F，Enter 下一个 / Shift+Enter 上一个） -->
+    <primitives:Popup x:Name="FindPopup" IsLightDismissEnabled="True">
+      <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+              CornerRadius="10" Padding="10">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBox x:Name="FindBox" MinWidth="260" KeyDown="FindBox_KeyDown"/>
+          <muxc:Button Content="下一个" Click="OnFindNext"/>
+        </StackPanel>
+      </Border>
+    </primitives:Popup>
+
+    <!-- 外部修改提示 -->
+    <muxc:InfoBar x:Name="ExternalBar" Grid.Row="1" VerticalAlignment="Top" Margin="0,8,8,0"
+                  Severity="Warning" Title="文件已被外部修改" IsOpen="False" IsClosable="True">
+      <muxc:InfoBar.ActionButton>
+        <muxc:Button Content="加载外部内容" Click="OnReloadExternal"/>
+      </muxc:InfoBar.ActionButton>
+    </muxc:InfoBar>
+
+    <muxc:TeachingTip x:Name="EmptyState" Grid.Row="1" Title="Maber"
+                      Subtitle="按 Ctrl+O 打开一个 Markdown 文件开始阅读"/>
+  </Grid>
+</Window>
