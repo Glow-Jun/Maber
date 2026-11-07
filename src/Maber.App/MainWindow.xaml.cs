@@ -125,6 +125,19 @@ public sealed partial class MainWindow : Window
 
     private async Task InitializeAsync(string? path)
     {
+        try
+        {
+            await InitializeCoreAsync(path);
+        }
+        catch (Exception ex)
+        {
+            Perf($"init:exception {ex.GetType().Name} {ex.Message}");
+            ShowBar($"初始化失败：{ex.Message}");
+        }
+    }
+
+    private async Task InitializeCoreAsync(string? path)
+    {
         Perf("init:start");
         _env = await App.GetWebViewEnvironmentAsync();
         await Web.EnsureCoreWebView2Async(_env);
@@ -132,11 +145,13 @@ public sealed partial class MainWindow : Window
         Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
             "app.localhost", Path.Combine(AppContext.BaseDirectory, "wwwroot"),
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+        Perf("init:mapped");
         // 文档内相对资源（图片等）：WebResourceRequested 自伺服。
         // 不用 SetVirtualHostNameToFolderMapping——实测首次导航后注册映射不生效
         Web.CoreWebView2.AddWebResourceRequestedFilter(
-            $"http://{ContentHost}/", Microsoft.Web.WebView2.Core.CoreWebView2WebResourceContext.All);
+            $"http://{ContentHost}/*", Microsoft.Web.WebView2.Core.CoreWebView2WebResourceContext.All); // 必须带 /* 通配
         Web.CoreWebView2.WebResourceRequested += OnContentResourceRequested;
+        Perf("init:filter-registered");
         // 关掉浏览器内置快捷键（Ctrl+F 呼出页内查找、Ctrl+O 呼出打开文件等），统一走我们的分发
         Web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
         Perf("init:navigate");
@@ -194,9 +209,10 @@ public sealed partial class MainWindow : Window
         [".txt"] = "text/plain", [".json"] = "application/json", [".md"] = "text/markdown",
     };
 
-    /// <summary>伺服当前文档目录下的相对资源；路径规范化并限制在目录内，图片流交给 WebView2 释放</summary>
-    private void OnContentResourceRequested(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebResourceRequestedEventArgs e)
+    /// <summary>伺服当前文档目录下的相对资源；路径规范化并限制在目录内</summary>
+    private async void OnContentResourceRequested(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebResourceRequestedEventArgs e)
     {
+        var deferral = e.GetDeferral(); // 处理器内有异步 IO，挂起完成直到响应就绪
         try
         {
             if (_env is null || _contentDir is null)
@@ -215,7 +231,8 @@ public sealed partial class MainWindow : Window
                 return;
             }
             var mime = MimeByExt.TryGetValue(Path.GetExtension(full), out var m) ? m : "application/octet-stream";
-            var stream = File.OpenRead(full); // 交给 WebView2 持有并释放
+            var bytes = await File.ReadAllBytesAsync(full);
+            var stream = new MemoryStream(bytes).AsRandomAccessStream(); // WinRT 响应要求 IRandomAccessStream
             e.Response = _env.CreateWebResourceResponse(stream, 200, "OK",
                 $"Content-Type: {mime}\r\nCache-Control: no-store");
         }
@@ -223,6 +240,10 @@ public sealed partial class MainWindow : Window
         {
             Perf($"res:error {ex.Message}");
             try { e.Response = _env?.CreateWebResourceResponse(null, 500, "Internal Error", ""); } catch { /* ignore */ }
+        }
+        finally
+        {
+            deferral.Complete();
         }
     }
 
