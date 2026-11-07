@@ -168,6 +168,17 @@ window.addEventListener(
   { capture: true },
 );
 
+// 诊断：图片加载失败 / JS 异常上报宿主进日志
+window.addEventListener(
+  "error",
+  (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t && t.tagName === "IMG") send({ type: "diag", text: `img-failed ${t.getAttribute("src")}` });
+    else if (e instanceof ErrorEvent && e.message) send({ type: "diag", text: `js-error ${e.message}` });
+  },
+  true,
+);
+
 // 给宿主的取源入口
 (window as any).__maber = { getSource: () => currentText };
 send({ type: "ready" });

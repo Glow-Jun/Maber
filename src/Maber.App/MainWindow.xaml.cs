@@ -126,11 +126,17 @@ public sealed partial class MainWindow : Window
     private async Task InitializeAsync(string? path)
     {
         Perf("init:start");
-        await Web.EnsureCoreWebView2Async(await App.GetWebViewEnvironmentAsync());
+        _env = await App.GetWebViewEnvironmentAsync();
+        await Web.EnsureCoreWebView2Async(_env);
         Perf("init:controller-ready");
         Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
             "app.localhost", Path.Combine(AppContext.BaseDirectory, "wwwroot"),
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+        // 文档内相对资源（图片等）：WebResourceRequested 自伺服。
+        // 不用 SetVirtualHostNameToFolderMapping——实测首次导航后注册映射不生效
+        Web.CoreWebView2.AddWebResourceRequestedFilter(
+            $"http://{ContentHost}/", Microsoft.Web.WebView2.Core.CoreWebView2WebResourceContext.All);
+        Web.CoreWebView2.WebResourceRequested += OnContentResourceRequested;
         // 关掉浏览器内置快捷键（Ctrl+F 呼出页内查找、Ctrl+O 呼出打开文件等），统一走我们的分发
         Web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
         Perf("init:navigate");
@@ -164,11 +170,8 @@ public sealed partial class MainWindow : Window
         ModeBadge.Text = "阅读";
         _watcher.Attach(path);
         TitleText.Text = Path.GetFileName(path);
-        // 把文件所在目录映射为资源域：文档内相对路径图片经此伺服
-        var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
-        Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
-            ContentHost, dir,
-            Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+        // 文档内相对资源的伺服根目录（WebResourceRequested 处理器读取）
+        _contentDir = Path.GetDirectoryName(Path.GetFullPath(path));
         Post(new
         {
             type = BridgeMessages.LoadDocument,
@@ -178,7 +181,50 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    private const string ContentHost = "md.files";
+    private const string ContentHost = "md.localhost";
+    private Microsoft.Web.WebView2.Core.CoreWebView2Environment? _env;
+    private string? _contentDir;
+
+    private static readonly Dictionary<string, string> MimeByExt = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [".png"] = "image/png", [".jpg"] = "image/jpeg", [".jpeg"] = "image/jpeg",
+        [".gif"] = "image/gif", [".webp"] = "image/webp", [".svg"] = "image/svg+xml",
+        [".bmp"] = "image/bmp", [".avif"] = "image/avif",
+        [".mp4"] = "video/mp4", [".webm"] = "video/webm", [".mp3"] = "audio/mpeg",
+        [".txt"] = "text/plain", [".json"] = "application/json", [".md"] = "text/markdown",
+    };
+
+    /// <summary>伺服当前文档目录下的相对资源；路径规范化并限制在目录内，图片流交给 WebView2 释放</summary>
+    private void OnContentResourceRequested(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2WebResourceRequestedEventArgs e)
+    {
+        try
+        {
+            if (_env is null || _contentDir is null)
+            {
+                e.Response = _env?.CreateWebResourceResponse(null, 404, "Not Found", "");
+                return;
+            }
+            var uri = new Uri(e.Request.Uri);
+            var rel = Uri.UnescapeDataString(uri.AbsolutePath).TrimStart('/');
+            var full = Path.GetFullPath(Path.Combine(_contentDir, rel));
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_contentDir)) + Path.DirectorySeparatorChar;
+            if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
+            {
+                Perf($"res:404 {rel}");
+                e.Response = _env.CreateWebResourceResponse(null, 404, "Not Found", "");
+                return;
+            }
+            var mime = MimeByExt.TryGetValue(Path.GetExtension(full), out var m) ? m : "application/octet-stream";
+            var stream = File.OpenRead(full); // 交给 WebView2 持有并释放
+            e.Response = _env.CreateWebResourceResponse(stream, 200, "OK",
+                $"Content-Type: {mime}\r\nCache-Control: no-store");
+        }
+        catch (Exception ex)
+        {
+            Perf($"res:error {ex.Message}");
+            try { e.Response = _env?.CreateWebResourceResponse(null, 500, "Internal Error", ""); } catch { /* ignore */ }
+        }
+    }
 
     private async Task SaveAsync()
     {
@@ -321,6 +367,9 @@ public sealed partial class MainWindow : Window
                 break;
             case BridgeMessages.OpenWikilink:
                 _ = OpenWikilinkAsync(json.RootElement.GetProperty("target").GetString() ?? "");
+                break;
+            case "diag":
+                Perf($"web:{json.RootElement.GetProperty("text").GetString()}");
                 break;
         }
     }
