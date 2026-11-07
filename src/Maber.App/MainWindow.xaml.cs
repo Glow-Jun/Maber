@@ -93,7 +93,7 @@ public sealed partial class MainWindow : Window
         catch { /* 日志失败不影响功能 */ }
     }
 
-    /// <summary>默认竖版 5:7（宽:高），逻辑基准 720×1008；先保证比例，再整体夹进显示器工作区</summary>
+    /// <summary>默认竖版 5:7，总高基准 720 逻辑像素（宽 = 高 × 5/7 ≈ 514）；夹进显示器工作区并保持比例</summary>
     private void SetDefaultWindowSize()
     {
         try
@@ -102,9 +102,9 @@ public sealed partial class MainWindow : Window
             if (scale < 1) scale = 1;
             var work = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
             const double ratio = 7.0 / 5.0;              // 高/宽
-            var wLogical = Math.Min(720.0, work.Width / scale);
-            var hLogical = Math.Min(wLogical * ratio, work.Height / scale);
-            wLogical = hLogical / ratio;                  // 高度被夹矮时收宽度，保住 5:7
+            var hLogical = Math.Min(720.0, work.Height / scale);
+            var wLogical = Math.Min(hLogical / ratio, work.Width / scale);
+            hLogical = wLogical * ratio;                  // 宽度被夹窄时收高度，保住 5:7
             var w = (int)(wLogical * scale);
             var h = (int)(hLogical * scale);
             AppWindow.Resize(new Windows.Graphics.SizeInt32(w, h));
@@ -134,7 +134,9 @@ public sealed partial class MainWindow : Window
         // 关掉浏览器内置快捷键（Ctrl+F 呼出页内查找、Ctrl+O 呼出打开文件等），统一走我们的分发
         Web.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
         Perf("init:navigate");
-        Web.CoreWebView2.Navigate("https://app.local/index.html");
+        // 主机名用 .localhost 而非 .local：Chromium 会把 .local 走 mDNS 广播解析，等 ~2s 超时才落到虚拟主机映射；
+        // .localhost 由浏览器规范保证即时回环解析
+        Web.CoreWebView2.Navigate("http://app.localhost/index.html");
         await _webReady.Task; // 等 Web 监听器就绪，避免首条 loadDocument 丢失
         Perf("init:web-ready");
         if (path is null) { EmptyState.IsOpen = true; return; }
