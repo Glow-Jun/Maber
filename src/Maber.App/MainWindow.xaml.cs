@@ -70,6 +70,7 @@ public sealed partial class MainWindow : Window
             _webReady.TrySetResult();
             Perf("web:navigation-completed");
             SendTheme();
+            SendTypography();
         };
         // 关闭查找框时清掉页内高亮
         FindPopup.Closed += (_, _) =>
@@ -465,6 +466,7 @@ public sealed partial class MainWindow : Window
                     _ready = true;
                     _webReady.TrySetResult();
                     SendTheme();
+                    SendTypography();
                     break;
                 case BridgeMessages.Accelerator:
                     if (_accelerators.TryGetValue(json.RootElement.GetProperty("key").GetString() ?? "", out var action))
@@ -534,6 +536,7 @@ public sealed partial class MainWindow : Window
     {
         ApplyChromeTheme();
         SendTheme();
+        SendTypography();
         RefreshRecentList();
     });
 
@@ -541,6 +544,155 @@ public sealed partial class MainWindow : Window
     {
         if (!_ready) return;
         Post(new { type = BridgeMessages.SetTheme, theme = SettingsHost.ResolveTheme() });
+    }
+
+    private void SendTypography()
+    {
+        if (!_ready) return;
+        var s = SettingsHost.Current;
+        Post(new
+        {
+            type = BridgeMessages.SetTypography,
+            fontFamily = s.FontFamily,
+            fontSize = s.FontSize,
+            lineHeight = s.LineHeight,
+            contentWidth = s.ContentWidth,
+        });
+    }
+
+    private bool _suppressSettingsEvents;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _saveTimer;
+
+    private async void OnOpenSettings(object s, RoutedEventArgs e) => await ShowSettingsAsync();
+
+    /// <summary>Total Mode 的完整设置：主题 + 排版，改动即时广播到所有窗口</summary>
+    private async Task ShowSettingsAsync()
+    {
+        if (!_totalMode) return;
+
+        var themeBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+        themeBox.Items.Add(new ComboBoxItem { Content = "跟随系统", Tag = "system" });
+        themeBox.Items.Add(new ComboBoxItem { Content = "浅色", Tag = "light" });
+        themeBox.Items.Add(new ComboBoxItem { Content = "深色", Tag = "dark" });
+
+        var fontBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+        fontBox.Items.Add(new ComboBoxItem { Content = "系统默认", Tag = "default" });
+        fontBox.Items.Add(new ComboBoxItem { Content = "微软雅黑", Tag = "yahei" });
+        fontBox.Items.Add(new ComboBoxItem { Content = "宋体", Tag = "simsun" });
+        fontBox.Items.Add(new ComboBoxItem { Content = "楷体", Tag = "kaiti" });
+        fontBox.Items.Add(new ComboBoxItem { Content = "等宽（Cascadia / Consolas）", Tag = "mono" });
+
+        var sizeSlider = new Slider { Minimum = 12, Maximum = 24, StepFrequency = 1 };
+        var sizeValue = new TextBlock { FontSize = 12, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center };
+        var lhSlider = new Slider { Minimum = 1.4, Maximum = 2.2, StepFrequency = 0.05 };
+        var lhValue = new TextBlock { FontSize = 12, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center };
+        var widthSlider = new Slider { Minimum = 30, Maximum = 70, StepFrequency = 1 };
+        var widthValue = new TextBlock { FontSize = 12, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center };
+
+        void SyncFromSettings()
+        {
+            _suppressSettingsEvents = true;
+            var s = SettingsHost.Current;
+            themeBox.SelectedIndex = s.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
+            fontBox.SelectedIndex = s.FontFamily switch { "yahei" => 1, "simsun" => 2, "kaiti" => 3, "mono" => 4, _ => 0 };
+            sizeSlider.Value = s.FontSize;
+            sizeValue.Text = $"{s.FontSize:0} px";
+            lhSlider.Value = s.LineHeight;
+            lhValue.Text = $"{s.LineHeight:0.00}";
+            widthSlider.Value = s.ContentWidth;
+            widthValue.Text = $"{s.ContentWidth:0} rem";
+            _suppressSettingsEvents = false;
+        }
+
+        void Commit(Func<AppSettings, AppSettings> change)
+        {
+            if (_suppressSettingsEvents) return;
+            SettingsHost.Update(change);
+            DebounceSave();
+        }
+
+        themeBox.SelectionChanged += (_, _) => Commit(s =>
+            s with { Theme = (themeBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "system" });
+        fontBox.SelectionChanged += (_, _) => Commit(s =>
+            s with { FontFamily = (fontBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "default" });
+        sizeSlider.ValueChanged += (_, e) =>
+        {
+            var v = Math.Round(e.NewValue);
+            sizeValue.Text = $"{v:0} px";
+            Commit(s => s with { FontSize = v });
+        };
+        lhSlider.ValueChanged += (_, e) =>
+        {
+            var v = Math.Round(e.NewValue, 2);
+            lhValue.Text = $"{v:0.00}";
+            Commit(s => s with { LineHeight = v });
+        };
+        widthSlider.ValueChanged += (_, e) =>
+        {
+            var v = Math.Round(e.NewValue);
+            widthValue.Text = $"{v:0} rem";
+            Commit(s => s with { ContentWidth = v });
+        };
+
+        SyncFromSettings();
+
+        var panel = new StackPanel { Spacing = 16, MinWidth = 340 };
+        panel.Children.Add(LabeledRow("主题", themeBox));
+        panel.Children.Add(LabeledRow("字体", fontBox));
+        panel.Children.Add(SliderRow("字号", sizeSlider, sizeValue));
+        panel.Children.Add(SliderRow("行高", lhSlider, lhValue));
+        panel.Children.Add(SliderRow("阅读宽度", widthSlider, widthValue));
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = Content.XamlRoot,
+            Title = "设置",
+            Content = new ScrollViewer { Content = panel, MaxHeight = 520 },
+            PrimaryButtonText = "完成",
+            SecondaryButtonText = "恢复默认",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        dialog.SecondaryButtonClick += (_, args) =>
+        {
+            args.Cancel = true; // 恢复默认后留在对话框，方便继续调整
+            SettingsHost.Update(_ => new AppSettings());
+            SettingsHost.Persist();
+            SyncFromSettings();
+        };
+        await dialog.ShowAsync();
+        SettingsHost.Persist(); // 去抖可能还没触发，关闭时兜底落盘
+    }
+
+    private static StackPanel LabeledRow(string label, FrameworkElement control)
+    {
+        var row = new StackPanel { Spacing = 4 };
+        row.Children.Add(new TextBlock { Text = label, FontSize = 12, Opacity = 0.7 });
+        row.Children.Add(control);
+        return row;
+    }
+
+    private static StackPanel SliderRow(string label, Slider slider, TextBlock value)
+    {
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        head.Children.Add(new TextBlock { Text = label, FontSize = 12, Opacity = 0.7 });
+        head.Children.Add(value);
+        var row = new StackPanel { Spacing = 2 };
+        row.Children.Add(head);
+        row.Children.Add(slider);
+        return row;
+    }
+
+    private void DebounceSave()
+    {
+        if (_saveTimer is null)
+        {
+            _saveTimer = DispatcherQueue.CreateTimer();
+            _saveTimer.Interval = TimeSpan.FromMilliseconds(300);
+            _saveTimer.IsRepeating = false;
+            _saveTimer.Tick += (_, _) => SettingsHost.Persist();
+        }
+        _saveTimer.Stop();
+        _saveTimer.Start();
     }
 
     // ---------- 侧栏 ----------

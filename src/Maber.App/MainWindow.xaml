@@ -73,7 +73,7 @@
           </Grid>
 
           <Button x:Name="SettingsButton" Grid.Row="2" Content="设置" Margin="8"
-                  HorizontalAlignment="Stretch"/>
+                  HorizontalAlignment="Stretch" Click="OnOpenSettings"/>
         </Grid>
       </Border>
 
