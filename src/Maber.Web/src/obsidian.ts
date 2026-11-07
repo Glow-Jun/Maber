@@ -64,7 +64,8 @@ function addWikilinkRule(md: MarkdownIt) {
     if (!silent) {
       const tok = state.push("html_inline", "", 0);
       if (isEmbed && /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(target)) {
-        tok.content = `<img class="embed" src="file://${encodeURIComponent(target)}" alt="${md.utils.escapeHtml(target)}">`;
+        // src 由 main.ts 统一重写到宿主映射的文件域，这里只带原始目标
+        tok.content = `<img class="embed" data-embed="${md.utils.escapeHtml(target)}" alt="${md.utils.escapeHtml(target)}">`;
       } else if (isEmbed) {
         tok.content = `<span class="embed-placeholder">![[]] ${md.utils.escapeHtml(target)}</span>`;
       } else {

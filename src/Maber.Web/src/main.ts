@@ -22,6 +22,7 @@ const fmBox = document.querySelector<HTMLElement>("#frontmatter")!;
 
 let mode: ViewMode = "render";
 let currentText = "";
+let contentBase = ""; // 宿主映射的当前文件目录域（http://md.files/），图片等相对资源重写到此
 
 let editor: SourceEditor | null = null;
 async function ensureEditor(): Promise<SourceEditor> {
@@ -43,6 +44,7 @@ function renderDocument(text: string) {
   const env: Record<string, unknown> = {};
   content.innerHTML = md.render(preserveIndent(text), env);
   injectTaskMarkers(content);
+  rewriteLocalImages(content);
   hydrateMermaid(content);
   send({ type: "outlineChanged", items: extractOutline(content) });
 
@@ -64,6 +66,17 @@ function injectTaskMarkers(root: HTMLElement) {
     const target = li.querySelector("p") ?? li;
     const checked = li.getAttribute("data-checked") === "true";
     target.insertAdjacentHTML("afterbegin", `<span class="task-marker${checked ? " checked" : ""}"></span>`);
+  }
+}
+
+// 相对路径图片统一指向宿主映射的文件域；含空格/中文的路径需编码
+function rewriteLocalImages(root: HTMLElement) {
+  if (!contentBase) return;
+  for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
+    const embed = img.getAttribute("data-embed");
+    const src = embed ?? img.getAttribute("src") ?? "";
+    if (!src || /^(https?:|data:|blob:)/i.test(src)) continue;
+    img.src = contentBase + encodeURI(src.replace(/^\.\//, "")).replace(/\+/g, "%2B");
   }
 }
 
@@ -112,6 +125,7 @@ onHostMessage((msg) => {
   switch (msg.type) {
     case "loadDocument":
       currentText = msg.content;
+      contentBase = msg.contentBase ?? "";
       // 宿主加载文件后总是回到阅读模式，两侧状态对齐
       if (editor?.visible) {
         editor.hide();

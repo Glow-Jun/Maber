@@ -164,8 +164,21 @@ public sealed partial class MainWindow : Window
         ModeBadge.Text = "阅读";
         _watcher.Attach(path);
         TitleText.Text = Path.GetFileName(path);
-        Post(new { type = BridgeMessages.LoadDocument, name = Path.GetFileName(path), content = _currentText });
+        // 把文件所在目录映射为资源域：文档内相对路径图片经此伺服
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
+            ContentHost, dir,
+            Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+        Post(new
+        {
+            type = BridgeMessages.LoadDocument,
+            name = Path.GetFileName(path),
+            content = _currentText,
+            contentBase = $"http://{ContentHost}/",
+        });
     }
+
+    private const string ContentHost = "md.files";
 
     private async Task SaveAsync()
     {
@@ -188,6 +201,32 @@ public sealed partial class MainWindow : Window
         window.Activate();
         Perf("wikilink:activate-called");
         await Task.CompletedTask;
+    }
+
+    /// <summary>标准 Markdown 相对链接（[text](docs/xx.md)）：剥掉 # 锚点后相对当前文件解析，新窗口打开</summary>
+    private void OpenLocalMarkdownLink(string href)
+    {
+        if (_doc is null || string.IsNullOrWhiteSpace(href)) return;
+        var clean = href.Split('#')[0].Trim();
+        if (clean.Length == 0) return;
+        if (!clean.EndsWith(".md", StringComparison.OrdinalIgnoreCase) &&
+            !clean.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowBar($"暂不支持打开「{href}」"); // 非 md 的本地文件（如 pdf）v0.1 不处理
+            return;
+        }
+        try
+        {
+            var full = Path.GetFullPath(Path.Combine(
+                Path.GetDirectoryName(_doc.Value.Path)!, clean.Replace('/', Path.DirectorySeparatorChar)));
+            if (!File.Exists(full)) { ShowBar($"未找到链接目标「{href}」"); return; }
+            var window = new MainWindow(full);
+            window.Activate();
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or System.Security.SecurityException)
+        {
+            ShowBar($"链接无法解析「{href}」");
+        }
     }
 
     private static string? ResolveWikilink(string currentPath, string target)
@@ -275,7 +314,10 @@ public sealed partial class MainWindow : Window
                 break;
             case BridgeMessages.OpenLink:
                 var href = json.RootElement.GetProperty("href").GetString() ?? "";
-                if (href.StartsWith("http")) _ = Launcher.LaunchUriAsync(new Uri(href));
+                if (href.StartsWith("http://") || href.StartsWith("https://"))
+                    _ = Launcher.LaunchUriAsync(new Uri(href));
+                else if (!href.StartsWith("#"))
+                    OpenLocalMarkdownLink(href);
                 break;
             case BridgeMessages.OpenWikilink:
                 _ = OpenWikilinkAsync(json.RootElement.GetProperty("target").GetString() ?? "");

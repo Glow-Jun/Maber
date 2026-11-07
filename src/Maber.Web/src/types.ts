@@ -1,6 +1,6 @@
 // ===== 宿主 → Web =====
 export type HostMessage =
-  | { type: "loadDocument"; name: string; content: string }
+  | { type: "loadDocument"; name: string; content: string; contentBase?: string }
   | { type: "setMode"; mode: "render" | "source" }
   | { type: "setTheme"; theme: "light" | "dark" }
   | { type: "scrollToHeading"; line: number }
