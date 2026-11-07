@@ -1,7 +1,8 @@
 import MarkdownIt from "markdown-it";
 
 export function buildRenderer(): MarkdownIt {
-  const md = new MarkdownIt({ html: true, linkify: true, breaks: false })
+  // breaks: Obsidian 默认把段内单换行渲染为换行，而非 CommonMark 的软换行
+  const md = new MarkdownIt({ html: true, linkify: true, breaks: true })
     .enable(["table", "strikethrough"]);
 
   // 标题带源行号（heading_open token.map[0] 即行首）

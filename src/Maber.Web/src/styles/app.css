@@ -74,3 +74,7 @@ mark.find-hit.current { outline: 2px solid var(--accent); }
 #editor-host.active { display: block; }
 #editor-host .cm-editor { height: 100%; font-size: 15px; }
 body[data-mode="source"] #app { overflow: hidden; padding-top: 2.5rem; }
+
+/* 源码模式查找命中 */
+#editor-host .cm-find-hit { background: var(--find-bg); }
+#editor-host .cm-selectionBackground { z-index: 0; }

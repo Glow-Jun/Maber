@@ -111,8 +111,8 @@ onHostMessage((msg) => {
       break;
     }
     case "find":
-      // v0.1 源码模式查找交给 CodeMirror 面板处理，这里只管渲染态
-      if (!editor.visible) find(content, msg.query, msg.direction);
+      if (editor.visible) editor.find(msg.query, msg.direction);
+      else find(content, msg.query, msg.direction);
       break;
   }
 });
