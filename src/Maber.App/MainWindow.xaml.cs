@@ -56,6 +56,8 @@ public sealed partial class MainWindow : Window
         {
             SidebarToggle.Visibility = Visibility.Visible;
             Sidebar.Visibility = Visibility.Visible;
+            SidebarSpace.Visibility = Visibility.Visible;
+            SidebarSpace.Width = 240;
         }
 
         // 所有窗口都关掉后退出进程，避免无窗口的后台残留
@@ -808,26 +810,47 @@ public sealed partial class MainWindow : Window
         _sidebarOpen = open;
         _sidebarStory?.Stop();
 
-        if (open && Sidebar.Visibility != Visibility.Visible)
+        if (open)
         {
-            Sidebar.Visibility = Visibility.Visible;
-            SidebarTransform.X = -Sidebar.Width;
+            if (Sidebar.Visibility != Visibility.Visible)
+            {
+                Sidebar.Visibility = Visibility.Visible;
+                SidebarTransform.X = -Sidebar.Width;
+            }
+            if (SidebarSpace.Visibility != Visibility.Visible)
+            {
+                SidebarSpace.Visibility = Visibility.Visible;
+                SidebarSpace.Width = 0;
+            }
         }
 
+        var duration = TimeSpan.FromMilliseconds(open ? 220 : 180);
+        var easing = new CubicEase
+        {
+            EasingMode = open ? EasingMode.EaseOut : EasingMode.EaseIn
+        };
         var slide = new DoubleAnimation
         {
             To = open ? 0 : -Sidebar.Width,
-            Duration = TimeSpan.FromMilliseconds(open ? 220 : 180),
-            EasingFunction = new CubicEase
-            {
-                EasingMode = open ? EasingMode.EaseOut : EasingMode.EaseIn
-            }
+            Duration = duration,
+            EasingFunction = easing
         };
         Storyboard.SetTarget(slide, SidebarTransform);
         Storyboard.SetTargetProperty(slide, "X");
 
+        var space = new DoubleAnimation
+        {
+            To = open ? Sidebar.Width : 0,
+            Duration = duration,
+            EasingFunction = easing,
+            EnableDependentAnimation = true, // Width 是布局属性，不开依赖动画会被直接忽略
+        };
+        Storyboard.SetTarget(space, SidebarSpace);
+        Storyboard.SetTargetProperty(space, "Width");
+
         var story = new Storyboard();
         story.Children.Add(slide);
+        story.Children.Add(space);
         story.Completed += (_, _) =>
         {
             _sidebarStory = null;
@@ -835,6 +858,8 @@ public sealed partial class MainWindow : Window
             {
                 Sidebar.Visibility = Visibility.Collapsed;
                 SidebarTransform.X = 0;
+                SidebarSpace.Visibility = Visibility.Collapsed;
+                SidebarSpace.Width = 240;
             }
         };
         _sidebarStory = story;
@@ -873,6 +898,8 @@ public sealed partial class MainWindow : Window
             _sidebarOpen = true;
             Sidebar.Visibility = Visibility.Visible;
             SidebarTransform.X = 0;
+            SidebarSpace.Visibility = Visibility.Visible;
+            SidebarSpace.Width = 240;
             SelectSidebarTab(TabOutline);
             RefreshSidebarOutline();
             return;

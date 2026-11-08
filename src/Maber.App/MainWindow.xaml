@@ -35,6 +35,10 @@
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
+      <!-- 侧栏展开时为主面板预留空间，使内容在可见区域内居中 -->
+      <Border x:Name="SidebarSpace" Grid.Column="0" Width="240" Visibility="Collapsed"
+              IsHitTestVisible="False"/>
+
       <!-- Total Mode 侧栏：大纲 / 最近 / 速查 + 设置入口 -->
       <Border x:Name="Sidebar" Grid.Column="0" Grid.ColumnSpan="2" Width="240" Visibility="Collapsed"
               HorizontalAlignment="Left" Canvas.ZIndex="10"
