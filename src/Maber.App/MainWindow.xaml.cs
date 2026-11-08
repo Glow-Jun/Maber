@@ -868,6 +868,10 @@ public sealed partial class MainWindow : Window
         TabOutline.IsChecked = ReferenceEquals(tab, TabOutline);
         TabRecent.IsChecked = ReferenceEquals(tab, TabRecent);
         TabCheat.IsChecked = ReferenceEquals(tab, TabCheat);
+        // 下划线放在模板外，由这里显式控制，避免 VisualState 在状态切换时残留
+        TabOutlineLine.Opacity = tab == TabOutline ? 1 : 0;
+        TabRecentLine.Opacity = tab == TabRecent ? 1 : 0;
+        TabCheatLine.Opacity = tab == TabCheat ? 1 : 0;
         SidebarOutline.Visibility = tab == TabOutline ? Visibility.Visible : Visibility.Collapsed;
         SidebarRecent.Visibility = tab == TabRecent ? Visibility.Visible : Visibility.Collapsed;
         CheatScroll.Visibility = tab == TabCheat ? Visibility.Visible : Visibility.Collapsed;

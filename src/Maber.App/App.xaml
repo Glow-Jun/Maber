@@ -54,9 +54,6 @@
                   <ContentPresenter Content="{TemplateBinding Content}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <Border x:Name="Underline" Height="2" Width="18" CornerRadius="1"
-                        Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
-                        HorizontalAlignment="Center" VerticalAlignment="Bottom" Opacity="0"/>
                 <Border x:Name="FocusRing" BorderBrush="{ThemeResource MaberAccentBrush}"
                         BorderThickness="1.5" CornerRadius="7" Opacity="0" IsHitTestVisible="False"/>
                 <VisualStateManager.VisualStateGroups>
@@ -73,19 +70,6 @@
                       </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled"/>
-                  </VisualStateGroup>
-                  <VisualStateGroup x:Name="CheckStates">
-                    <VisualState x:Name="Unchecked">
-                      <VisualState.Setters>
-                        <Setter Target="Underline.Opacity" Value="0"/>
-                      </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Checked">
-                      <VisualState.Setters>
-                        <Setter Target="Underline.Opacity" Value="1"/>
-                      </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Indeterminate"/>
                   </VisualStateGroup>
                   <VisualStateGroup x:Name="FocusStates">
                     <VisualState x:Name="Unfocused"/>
