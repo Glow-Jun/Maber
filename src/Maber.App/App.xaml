@@ -54,22 +54,6 @@
                   <ContentPresenter Content="{TemplateBinding Content}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <VisualStateManager.VisualStateGroups>
-                  <VisualStateGroup x:Name="CommonStates">
-                    <VisualState x:Name="Normal"/>
-                    <VisualState x:Name="PointerOver">
-                      <VisualState.Setters>
-                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberHoverBackgroundBrush}"/>
-                      </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Pressed">
-                      <VisualState.Setters>
-                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberPressedBackgroundBrush}"/>
-                      </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="Disabled"/>
-                  </VisualStateGroup>
-                </VisualStateManager.VisualStateGroups>
               </Grid>
             </ControlTemplate>
           </Setter.Value>

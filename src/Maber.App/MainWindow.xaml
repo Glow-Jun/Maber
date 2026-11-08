@@ -49,21 +49,21 @@
           <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="8,14,8,8"
                       HorizontalAlignment="Center">
             <Grid>
-              <ToggleButton x:Name="TabOutline" Content="大纲" IsChecked="True"
+              <ToggleButton x:Name="TabOutline" Content="大纲" IsChecked="True" IsTabStop="False"
                             Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"/>
               <Border x:Name="TabOutlineLine" Height="2" Width="18" CornerRadius="1"
                       Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
                       HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
             </Grid>
             <Grid>
-              <ToggleButton x:Name="TabRecent" Content="最近"
+              <ToggleButton x:Name="TabRecent" Content="最近" IsTabStop="False"
                             Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"/>
               <Border x:Name="TabRecentLine" Height="2" Width="18" CornerRadius="1"
                       Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
                       HorizontalAlignment="Center" VerticalAlignment="Bottom" Opacity="0"/>
             </Grid>
             <Grid>
-              <ToggleButton x:Name="TabCheat" Content="速查"
+              <ToggleButton x:Name="TabCheat" Content="速查" IsTabStop="False"
                             Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"/>
               <Border x:Name="TabCheatLine" Height="2" Width="18" CornerRadius="1"
                       Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
