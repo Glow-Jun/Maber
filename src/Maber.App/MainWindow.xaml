@@ -38,50 +38,47 @@
       <!-- Total Mode 侧栏：大纲 / 最近 / 速查 + 设置入口 -->
       <Border x:Name="Sidebar" Grid.Column="0" Width="240" Visibility="Collapsed"
               Background="{ThemeResource MaberSidebarBackgroundBrush}"
-              BorderBrush="{ThemeResource MaberSidebarBorderBrush}" BorderThickness="0,0,1,0">
-        <Grid>
+              BorderBrush="{ThemeResource MaberSidebarBorderBrush}" BorderThickness="0,0,1,0"
+              SizeChanged="OnSidebarSizeChanged">
+        <Grid x:Name="SidebarContent">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
 
-          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="8,14,8,8"
-                      HorizontalAlignment="Center">
-            <Grid>
-              <Border x:Name="TabOutlineHover" Background="{ThemeResource MaberHoverBackgroundBrush}"
-                      CornerRadius="7" Opacity="0" IsHitTestVisible="False"/>
-              <ToggleButton x:Name="TabOutline" Content="大纲" IsChecked="True" IsTabStop="False"
-                            Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"
-                            PointerEntered="OnTabPointerEntered" PointerExited="OnTabPointerExited"/>
-              <Border x:Name="TabOutlineLine" Height="2" Width="18" CornerRadius="1"
-                      Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
-                      HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                      IsHitTestVisible="False"/>
-            </Grid>
-            <Grid>
-              <Border x:Name="TabRecentHover" Background="{ThemeResource MaberHoverBackgroundBrush}"
-                      CornerRadius="7" Opacity="0" IsHitTestVisible="False"/>
-              <ToggleButton x:Name="TabRecent" Content="最近" IsTabStop="False"
-                            Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"
-                            PointerEntered="OnTabPointerEntered" PointerExited="OnTabPointerExited"/>
-              <Border x:Name="TabRecentLine" Height="2" Width="18" CornerRadius="1"
-                      Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
-                      HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                      Opacity="0" IsHitTestVisible="False"/>
-            </Grid>
-            <Grid>
-              <Border x:Name="TabCheatHover" Background="{ThemeResource MaberHoverBackgroundBrush}"
-                      CornerRadius="7" Opacity="0" IsHitTestVisible="False"/>
-              <ToggleButton x:Name="TabCheat" Content="速查" IsTabStop="False"
-                            Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"
-                            PointerEntered="OnTabPointerEntered" PointerExited="OnTabPointerExited"/>
-              <Border x:Name="TabCheatLine" Height="2" Width="18" CornerRadius="1"
-                      Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
-                      HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                      Opacity="0" IsHitTestVisible="False"/>
-            </Grid>
-          </StackPanel>
+          <Grid x:Name="TabStrip" Grid.Row="0" Margin="8,14,8,8" HorizontalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Grid>
+                <Border x:Name="TabOutlineHover" Background="{ThemeResource MaberHoverBackgroundBrush}"
+                        CornerRadius="7" Opacity="0" IsHitTestVisible="False"/>
+                <ToggleButton x:Name="TabOutline" Content="大纲" IsChecked="True" IsTabStop="False"
+                              Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"
+                              PointerEntered="OnTabPointerEntered" PointerExited="OnTabPointerExited"/>
+              </Grid>
+              <Grid>
+                <Border x:Name="TabRecentHover" Background="{ThemeResource MaberHoverBackgroundBrush}"
+                        CornerRadius="7" Opacity="0" IsHitTestVisible="False"/>
+                <ToggleButton x:Name="TabRecent" Content="最近" IsTabStop="False"
+                              Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"
+                              PointerEntered="OnTabPointerEntered" PointerExited="OnTabPointerExited"/>
+              </Grid>
+              <Grid>
+                <Border x:Name="TabCheatHover" Background="{ThemeResource MaberHoverBackgroundBrush}"
+                        CornerRadius="7" Opacity="0" IsHitTestVisible="False"/>
+                <ToggleButton x:Name="TabCheat" Content="速查" IsTabStop="False"
+                              Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"
+                              PointerEntered="OnTabPointerEntered" PointerExited="OnTabPointerExited"/>
+              </Grid>
+            </StackPanel>
+            <Border x:Name="TabUnderline" Height="2" Width="18" CornerRadius="1"
+                    Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False">
+              <Border.RenderTransform>
+                <TranslateTransform x:Name="TabUnderlineTransform"/>
+              </Border.RenderTransform>
+            </Border>
+          </Grid>
 
           <Grid Grid.Row="1">
             <ListView x:Name="SidebarOutline" IsItemClickEnabled="True" ItemClick="SidebarOutline_ItemClick">

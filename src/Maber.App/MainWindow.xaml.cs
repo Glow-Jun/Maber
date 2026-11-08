@@ -7,6 +7,9 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
+using Windows.Foundation;
 using Windows.System;
 
 namespace Maber.App;
@@ -30,12 +33,19 @@ public sealed partial class MainWindow : Window
     private readonly TaskCompletionSource _webReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly bool _totalMode;
+    private bool _sidebarOpen = true;
+    private bool _sidebarAnimating;
+    private ToggleButton? _currentSidebarTab;
+    private Storyboard? _sidebarStory;
 
     public MainWindow(string? initialPath = null, bool totalMode = false)
     {
         _totalMode = totalMode;
         Perf($"window:ctor {(initialPath is null ? "main" : $"wikilink {Path.GetFileName(initialPath)}")} total={totalMode}");
         InitializeComponent();
+        _currentSidebarTab = TabOutline;
+        TabStrip.Loaded += (_, _) => MoveTabUnderline(TabOutline, false);
+        TabStrip.SizeChanged += (_, _) => MoveTabUnderline(_currentSidebarTab ?? TabOutline, false);
         Title = "Maber";
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
@@ -791,10 +801,68 @@ public sealed partial class MainWindow : Window
 
     private void OnToggleSidebar(object s, RoutedEventArgs e) => ToggleSidebar();
 
-    private void ToggleSidebar()
+    private void ToggleSidebar() => SetSidebarOpen(!_sidebarOpen);
+
+    /// <summary>侧栏以宽度过渡展开/收起，主面板同步回流</summary>
+    private void SetSidebarOpen(bool open)
     {
-        if (!_totalMode) return;
-        Sidebar.Visibility = Sidebar.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        if (!_totalMode || _sidebarAnimating || _sidebarOpen == open) return;
+        _sidebarOpen = open;
+        _sidebarAnimating = true;
+
+        if (open)
+        {
+            Sidebar.Visibility = Visibility.Visible;
+            Sidebar.Width = 0;
+            SidebarContent.Opacity = 0;
+        }
+
+        var width = new DoubleAnimation
+        {
+            To = open ? 240 : 0,
+            Duration = TimeSpan.FromMilliseconds(200),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        Storyboard.SetTarget(width, Sidebar);
+        Storyboard.SetTargetProperty(width, "Width");
+
+        var fade = new DoubleAnimation
+        {
+            To = open ? 1 : 0,
+            Duration = TimeSpan.FromMilliseconds(open ? 160 : 110),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        Storyboard.SetTarget(fade, SidebarContent);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+
+        _sidebarStory?.Stop();
+        var story = new Storyboard();
+        story.Children.Add(width);
+        story.Children.Add(fade);
+        story.Completed += (_, _) =>
+        {
+            _sidebarStory = null;
+            _sidebarAnimating = false;
+            if (_sidebarOpen)
+            {
+                Sidebar.Width = 240;
+                SidebarContent.Opacity = 1;
+            }
+            else
+            {
+                Sidebar.Visibility = Visibility.Collapsed;
+            }
+        };
+        _sidebarStory = story;
+        story.Begin();
+    }
+
+    private void OnSidebarSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        Sidebar.Clip = new RectangleGeometry
+        {
+            Rect = new Rect(0, 0, Math.Max(0, e.NewSize.Width), Math.Max(0, e.NewSize.Height))
+        };
     }
 
     // ---------- 快捷键 ----------
@@ -825,6 +893,11 @@ public sealed partial class MainWindow : Window
         if (!_ready || _doc is null) return;
         if (_totalMode)
         {
+            _sidebarStory?.Stop();
+            _sidebarAnimating = false;
+            _sidebarOpen = true;
+            Sidebar.Width = 240;
+            SidebarContent.Opacity = 1;
             Sidebar.Visibility = Visibility.Visible;
             SelectSidebarTab(TabOutline);
             RefreshSidebarOutline();
@@ -882,13 +955,38 @@ public sealed partial class MainWindow : Window
         TabOutline.IsChecked = ReferenceEquals(tab, TabOutline);
         TabRecent.IsChecked = ReferenceEquals(tab, TabRecent);
         TabCheat.IsChecked = ReferenceEquals(tab, TabCheat);
-        // 下划线放在模板外，由这里显式控制，避免 VisualState 在状态切换时残留
-        TabOutlineLine.Opacity = tab == TabOutline ? 1 : 0;
-        TabRecentLine.Opacity = tab == TabRecent ? 1 : 0;
-        TabCheatLine.Opacity = tab == TabCheat ? 1 : 0;
+        _currentSidebarTab = tab;
+        MoveTabUnderline(tab, animate: true);
         SidebarOutline.Visibility = tab == TabOutline ? Visibility.Visible : Visibility.Collapsed;
         SidebarRecent.Visibility = tab == TabRecent ? Visibility.Visible : Visibility.Collapsed;
         CheatScroll.Visibility = tab == TabCheat ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>单条下划线在三个标签之间滑动，避免逐条淡入淡出的跳变</summary>
+    private void MoveTabUnderline(ToggleButton tab, bool animate)
+    {
+        if (TabStrip.ActualWidth <= 0 || tab.ActualWidth <= 0) return;
+        var center = tab.TransformToVisual(TabStrip)
+            .TransformPoint(new Point(tab.ActualWidth / 2, 0)).X;
+        var target = center - TabUnderline.Width / 2;
+
+        if (!animate)
+        {
+            TabUnderlineTransform.X = target;
+            return;
+        }
+
+        var slide = new DoubleAnimation
+        {
+            To = target,
+            Duration = TimeSpan.FromMilliseconds(180),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        Storyboard.SetTarget(slide, TabUnderlineTransform);
+        Storyboard.SetTargetProperty(slide, "X");
+        var story = new Storyboard();
+        story.Children.Add(slide);
+        story.Begin();
     }
 
     private void RefreshRecentList()
