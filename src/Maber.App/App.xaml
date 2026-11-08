@@ -54,8 +54,6 @@
                   <ContentPresenter Content="{TemplateBinding Content}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <Border x:Name="FocusRing" BorderBrush="{ThemeResource MaberAccentBrush}"
-                        BorderThickness="1.5" CornerRadius="7" Opacity="0" IsHitTestVisible="False"/>
                 <VisualStateManager.VisualStateGroups>
                   <VisualStateGroup x:Name="CommonStates">
                     <VisualState x:Name="Normal"/>
@@ -70,15 +68,6 @@
                       </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled"/>
-                  </VisualStateGroup>
-                  <VisualStateGroup x:Name="FocusStates">
-                    <VisualState x:Name="Unfocused"/>
-                    <VisualState x:Name="Focused">
-                      <VisualState.Setters>
-                        <Setter Target="FocusRing.Opacity" Value="1"/>
-                      </VisualState.Setters>
-                    </VisualState>
-                    <VisualState x:Name="PointerFocused"/>
                   </VisualStateGroup>
                 </VisualStateManager.VisualStateGroups>
               </Grid>
