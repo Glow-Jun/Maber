@@ -8,6 +8,7 @@ public static class BridgeMessages
     public const string SetMode = "setMode";
     public const string SetTheme = "setTheme";
     public const string SetTypography = "setTypography";
+    public const string SetEmptyState = "setEmptyState";
     public const string ScrollToHeading = "scrollToHeading";
     public const string Find = "find";
 

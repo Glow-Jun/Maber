@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Maber.Core;
@@ -44,7 +45,6 @@ public sealed partial class MainWindow : Window
         {
             SidebarToggle.Visibility = Visibility.Visible;
             Sidebar.Visibility = Visibility.Visible;
-            EmptyState.Subtitle = "从左侧最近文件选择，或按 Ctrl+O 打开";
         }
 
         // 所有窗口都关掉后退出进程，避免无窗口的后台残留
@@ -80,7 +80,12 @@ public sealed partial class MainWindow : Window
         };
         _watcher.ExternalChanged += (_, _) => DispatcherQueue.TryEnqueue(OnExternalChanged);
         _watcher.ExternalDeleted += (_, _) => DispatcherQueue.TryEnqueue(() => ShowBar("文件已被外部删除"));
-        Activated += (_, e) => { if (e.WindowActivationState != WindowActivationState.Deactivated) SendTheme(); };
+        Activated += (_, e) =>
+        {
+            if (e.WindowActivationState == WindowActivationState.Deactivated) return;
+            ApplyChromeTheme(); // 跟随系统时，系统主题可能在后台已切换
+            SendTheme();
+        };
 
         // XAML 侧快捷键只在焦点落在 XAML 元素（如查找框）时生效；
         // 焦点在 WebView2 内时由内核捕获按键后经 "accelerator" 消息分发到同一张表
@@ -212,7 +217,7 @@ public sealed partial class MainWindow : Window
         await _webReady.Task; // 等 Web 监听器就绪，避免首条 loadDocument 丢失
         Perf("init:web-ready");
         if (!_ready) return;  // 导航失败时页面是错误页，继续加载文档没有意义
-        if (path is null) { EmptyState.IsOpen = true; return; }
+        if (path is null) { SendEmptyState(true); return; }
         await LoadFileAsync(path);
         Perf("init:document-loaded");
     }
@@ -237,7 +242,6 @@ public sealed partial class MainWindow : Window
 
     private async Task LoadFileAsync(string path)
     {
-        EmptyState.IsOpen = false; // 空状态提示（Ctrl+O 教程卡）打开文件后即收起
         _doc = await _files.LoadAsync(path);
         _currentText = _doc.Value.Text;
         _dirty = false;
@@ -257,6 +261,7 @@ public sealed partial class MainWindow : Window
         if (_doc is null) return;
         _sourceMode = false;
         ModeBadge.Text = "阅读";
+        SendEmptyState(false);
         Post(new
         {
             type = BridgeMessages.LoadDocument,
@@ -468,6 +473,7 @@ public sealed partial class MainWindow : Window
                     _webReady.TrySetResult();
                     SendTheme();
                     SendTypography();
+                    if (_totalMode && _doc is null) SendEmptyState(true); // Slim 等文档加载，避免水印闪一下
                     break;
                 case BridgeMessages.Accelerator:
                     if (_accelerators.TryGetValue(json.RootElement.GetProperty("key").GetString() ?? "", out var action))
@@ -524,14 +530,64 @@ public sealed partial class MainWindow : Window
     /// <summary>WinUI 侧（标题栏/弹层/对话框）跟随设置；system 交给系统默认</summary>
     private void ApplyChromeTheme()
     {
-        if (Content is not FrameworkElement root) return;
-        root.RequestedTheme = SettingsHost.Current.Theme switch
+        if (Content is FrameworkElement root)
         {
-            "light" => ElementTheme.Light,
-            "dark" => ElementTheme.Dark,
-            _ => ElementTheme.Default,
-        };
+            root.RequestedTheme = SettingsHost.Current.Theme switch
+            {
+                "light" => ElementTheme.Light,
+                "dark" => ElementTheme.Dark,
+                _ => ElementTheme.Default,
+            };
+        }
+        ApplyCaptionButtonTheme();
     }
+
+    /// <summary>
+    /// 系统标题栏按钮不跟随元素级 RequestedTheme，需显式上色；
+    /// 背景透明，露出 Root 的主题底色，切主题时整条标题栏与内容一致。
+    /// </summary>
+    private void ApplyCaptionButtonTheme()
+    {
+        try
+        {
+            var bar = AppWindow.TitleBar;
+            var light = SettingsHost.ResolveTheme() == "light";
+            var fg = light
+                ? Windows.UI.Color.FromArgb(255, 0x1F, 0x23, 0x28)
+                : Windows.UI.Color.FromArgb(255, 0xD6, 0xD9, 0xDD);
+            var inactiveFg = light
+                ? Windows.UI.Color.FromArgb(255, 0x9A, 0xA0, 0xA8)
+                : Windows.UI.Color.FromArgb(255, 0x6E, 0x74, 0x7E);
+            var hoverBg = light
+                ? Windows.UI.Color.FromArgb(255, 0xEC, 0xEC, 0xE7)
+                : Windows.UI.Color.FromArgb(255, 0x26, 0x2B, 0x33);
+            var pressedBg = light
+                ? Windows.UI.Color.FromArgb(255, 0xE4, 0xE4, 0xDE)
+                : Windows.UI.Color.FromArgb(255, 0x2F, 0x35, 0x3E);
+
+            bar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+            bar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+            bar.ButtonForegroundColor = fg;
+            bar.ButtonHoverForegroundColor = fg;
+            bar.ButtonPressedForegroundColor = fg;
+            bar.ButtonInactiveForegroundColor = inactiveFg;
+            bar.ButtonHoverBackgroundColor = hoverBg;
+            bar.ButtonPressedBackgroundColor = pressedBg;
+            bar.BackgroundColor = Microsoft.UI.Colors.Transparent;
+            bar.InactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+
+            // DWM 窗口描边也跟随系统，不处理会在浅色下留一圈深色边（Win11 才支持，失败无副作用）
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var border = light ? 0x00FCFDFD : 0x001D1816; // COLORREF = 0x00BBGGRR
+            _ = DwmSetWindowAttribute(hwnd, DwmwaBorderColor, ref border, sizeof(int));
+        }
+        catch { /* 标题栏定制在个别系统版本不可用时不影响功能 */ }
+    }
+
+    private const int DwmwaBorderColor = 34;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
     private void OnSettingsChanged(object? s, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
     {
@@ -559,6 +615,12 @@ public sealed partial class MainWindow : Window
             lineHeight = s.LineHeight,
             contentWidth = s.ContentWidth,
         });
+    }
+
+    private void SendEmptyState(bool visible)
+    {
+        if (!_ready) return;
+        Post(new { type = BridgeMessages.SetEmptyState, visible });
     }
 
     private bool _suppressSettingsEvents;

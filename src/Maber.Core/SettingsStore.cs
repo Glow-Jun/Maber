@@ -21,9 +21,13 @@ public sealed class SettingsStore
     {
         try
         {
-            if (!File.Exists(FilePath)) return new AppSettings();
+            if (!File.Exists(FilePath)) return new AppSettings().Normalize();
             var json = File.ReadAllText(FilePath);
-            return (JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings()).Normalize();
+            var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
+            // v0.2.0 及更早没有 schema 字段，默认值是「跟随系统」；本版起默认浅色，一次性迁移
+            if (loaded.Schema < AppSettings.SettingsSchema && loaded.Theme == "system")
+                loaded = loaded with { Theme = "light" };
+            return loaded.Normalize();
         }
         catch
         {

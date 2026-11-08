@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
         xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives">
-  <Grid x:Name="Root">
+  <Grid x:Name="Root" Background="{ThemeResource MaberWindowBackgroundBrush}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
       <RowDefinition Height="*"/>
@@ -17,7 +17,7 @@
       </Grid.ColumnDefinitions>
 
       <Button x:Name="SidebarToggle" Grid.Column="0" Content="☰" FontSize="14" Padding="8,0"
-              Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
+              Style="{StaticResource GhostButtonStyle}" VerticalAlignment="Center"
               Click="OnToggleSidebar" Visibility="Collapsed"/>
 
       <Grid x:Name="AppTitleBar" Grid.Column="1" Background="Transparent">
@@ -36,8 +36,8 @@
 
       <!-- Total Mode 侧栏：大纲 / 最近 / 速查 + 设置入口 -->
       <Border x:Name="Sidebar" Grid.Column="0" Width="240" Visibility="Collapsed"
-              Background="{ThemeResource LayerFillColorDefaultBrush}"
-              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+              Background="{ThemeResource MaberSidebarBackgroundBrush}"
+              BorderBrush="{ThemeResource MaberSidebarBorderBrush}" BorderThickness="0,0,1,0">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -46,12 +46,12 @@
           </Grid.RowDefinitions>
 
           <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Margin="8,8,8,4">
-            <ToggleButton x:Name="TabOutline" Content="大纲" IsChecked="True" FontSize="12"
-                          Padding="8,4" Click="OnSidebarTab"/>
-            <ToggleButton x:Name="TabRecent" Content="最近" FontSize="12"
-                          Padding="8,4" Click="OnSidebarTab"/>
-            <ToggleButton x:Name="TabCheat" Content="速查" FontSize="12"
-                          Padding="8,4" Click="OnSidebarTab"/>
+            <ToggleButton x:Name="TabOutline" Content="大纲" IsChecked="True"
+                          Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"/>
+            <ToggleButton x:Name="TabRecent" Content="最近"
+                          Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"/>
+            <ToggleButton x:Name="TabCheat" Content="速查"
+                          Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"/>
           </StackPanel>
 
           <Grid Grid.Row="1">
@@ -78,8 +78,9 @@
             </ScrollViewer>
           </Grid>
 
-          <Button x:Name="SettingsButton" Grid.Row="2" Content="设置" Margin="8"
-                  HorizontalAlignment="Stretch" Click="OnOpenSettings"/>
+          <Button x:Name="SettingsButton" Grid.Row="2" Content="设置" Margin="8" Height="32"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                  Style="{StaticResource GhostButtonStyle}" Click="OnOpenSettings"/>
         </Grid>
       </Border>
 
@@ -118,7 +119,5 @@
       </muxc:InfoBar.ActionButton>
     </muxc:InfoBar>
 
-    <muxc:TeachingTip x:Name="EmptyState" Grid.Row="1" Title="Maber"
-                      Subtitle="按 Ctrl+O 打开一个 Markdown 文件开始阅读"/>
   </Grid>
 </Window>

@@ -9,6 +9,12 @@
 </head>
 <body>
 <div id="app"></div>
+<!-- 空状态水印：无文档时居中显示，任何点击穿透到下层 -->
+<div id="empty" class="hidden" aria-hidden="true">
+  <div class="empty-mark">Maber</div>
+  <div class="empty-hint">按 <kbd>Ctrl</kbd> + <kbd>O</kbd> 打开 Markdown 文件</div>
+  <div class="empty-sub">或从左侧最近文件开始</div>
+</div>
 <script type="module" src="/main.js"></script>
 </body>
 </html>

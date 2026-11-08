@@ -20,6 +20,7 @@ app.innerHTML = `
 const md = mathPlugin(obsidianPlugins(buildRenderer()));
 const content = document.querySelector<HTMLElement>("#content")!;
 const fmBox = document.querySelector<HTMLElement>("#frontmatter")!;
+const emptyBox = document.querySelector<HTMLElement>("#empty")!;
 
 let mode: ViewMode = "render";
 let currentText = "";
@@ -132,6 +133,7 @@ onHostMessage((msg) => {
   switch (msg.type) {
     case "loadDocument":
       currentText = msg.content;
+      emptyBox.classList.add("hidden");
       if (msg.contentBase !== undefined) contentBase = msg.contentBase;
       // 宿主加载文件后总是回到阅读模式，两侧状态对齐
       if (mode !== "render") {
@@ -157,6 +159,7 @@ onHostMessage((msg) => {
       break;
     }
     case "setTypography": applyTypography(msg); break;
+    case "setEmptyState": emptyBox.classList.toggle("hidden", !msg.visible); break;
     case "scrollToHeading": {
       const el = content.querySelector(`[data-line="${msg.line}"]`);
       el?.scrollIntoView({ block: "start", behavior: "smooth" });

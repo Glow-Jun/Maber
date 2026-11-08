@@ -87,6 +87,31 @@ mark.find-hit.current { outline: 2px solid var(--accent); }
 #content .callout[data-collapsed].expanded > :not(.callout-title) { display: block; }
 #content .callout[data-collapsed] .callout-title { cursor: pointer; }
 
+/* 空状态水印：居中、低对比、不可交互 */
+#empty {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: .45rem;
+  color: var(--fg-soft);
+  opacity: .5;
+  pointer-events: none;
+  user-select: none;
+}
+#empty.hidden { display: none; }
+#empty .empty-mark {
+  font-size: 2.6rem; font-weight: 300;
+  letter-spacing: .28em; text-indent: .28em;
+}
+#empty .empty-hint { font-size: .95rem; }
+#empty .empty-sub { font-size: .8rem; opacity: .8; }
+#empty kbd {
+  font: .85em "Cascadia Code", Consolas, monospace;
+  padding: .1em .4em; border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 4px;
+  background: color-mix(in srgb, var(--fg-soft) 8%, transparent);
+}
+
 /* frontmatter 条（main.ts 渲染 .fm-item） */
 #frontmatter {
   max-width: var(--content-width); margin: 0 auto; padding: 2.5rem 2.5rem 0;

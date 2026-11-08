@@ -7,7 +7,12 @@ public sealed record AppSettings
 {
     public const int MaxRecentFiles = 20;
 
-    public string Theme { get; init; } = "system";
+    /// <summary>设置结构版本：2 起默认浅色，旧版本（跟随系统）一次性迁移</summary>
+    public const int SettingsSchema = 2;
+
+    // 默认 0：反序列化旧文件时用于识别「没有 schema 字段」；Normalize 会写到当前版本
+    public int Schema { get; init; }
+    public string Theme { get; init; } = "light";
     public string FontFamily { get; init; } = "default";
     public double FontSize { get; init; } = 16;
     public double LineHeight { get; init; } = 1.75;
@@ -17,7 +22,8 @@ public sealed record AppSettings
     /// <summary>越界值夹回范围、未知键回落默认，避免坏配置把排版打乱</summary>
     public AppSettings Normalize() => this with
     {
-        Theme = Theme is "light" or "dark" ? Theme : "system",
+        Schema = SettingsSchema,
+        Theme = Theme is "system" or "light" or "dark" ? Theme : "light",
         FontFamily = FontFamily is "yahei" or "simsun" or "kaiti" or "mono" ? FontFamily : "default",
         FontSize = Math.Clamp(FontSize, 12, 24),
         LineHeight = Math.Clamp(LineHeight, 1.4, 2.2),

@@ -28,7 +28,7 @@ public class SettingsStoreTests : IDisposable
     {
         var s = new SettingsStore(_file).Load();
 
-        Assert.Equal("system", s.Theme);
+        Assert.Equal("light", s.Theme);
         Assert.Equal("default", s.FontFamily);
         Assert.Equal(16, s.FontSize);
         Assert.Equal(1.75, s.LineHeight);
@@ -64,8 +64,34 @@ public class SettingsStoreTests : IDisposable
     {
         File.WriteAllText(_file, "{ not json");
         var s = new SettingsStore(_file).Load();
-        Assert.Equal("system", s.Theme);
+        Assert.Equal("light", s.Theme);
         Assert.Equal(16, s.FontSize);
+    }
+
+    [Fact]
+    public void Load_LegacySystemTheme_MigratesToLight()
+    {
+        // v0.2.0 的设置文件没有 schema 字段，theme=system 是当时的默认值
+        File.WriteAllText(_file, """{"theme":"system","fontSize":16,"recentFiles":[]}""");
+
+        var s = new SettingsStore(_file).Load();
+
+        Assert.Equal("light", s.Theme);
+        Assert.Equal(AppSettings.SettingsSchema, s.Schema);
+    }
+
+    [Fact]
+    public void Load_LegacyExplicitDark_KeepsDark()
+    {
+        File.WriteAllText(_file, """{"theme":"dark","fontSize":16,"recentFiles":[]}""");
+        Assert.Equal("dark", new SettingsStore(_file).Load().Theme);
+    }
+
+    [Fact]
+    public void Load_CurrentSchemaSystem_KeepsSystem()
+    {
+        File.WriteAllText(_file, """{"schema":2,"theme":"system","fontSize":16,"recentFiles":[]}""");
+        Assert.Equal("system", new SettingsStore(_file).Load().Theme);
     }
 
     [Fact]
@@ -77,7 +103,7 @@ public class SettingsStoreTests : IDisposable
             LineHeight = 0.5, ContentWidth = 200,
         }.Normalize();
 
-        Assert.Equal("system", s.Theme);
+        Assert.Equal("light", s.Theme);
         Assert.Equal("default", s.FontFamily);
         Assert.Equal(24, s.FontSize);
         Assert.Equal(1.4, s.LineHeight);

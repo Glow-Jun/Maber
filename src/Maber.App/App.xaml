@@ -6,6 +6,115 @@
       <ResourceDictionary.MergedDictionaries>
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
+
+      <!-- 与 Web 内核取色对齐：浅色 #fdfdfc / 深色 #16181d，侧栏仅做一级微差 -->
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="MaberWindowBackgroundBrush" Color="#FDFDFC"/>
+          <SolidColorBrush x:Key="MaberSidebarBackgroundBrush" Color="#F7F7F3"/>
+          <SolidColorBrush x:Key="MaberSidebarBorderBrush" Color="#E7E7E1"/>
+          <SolidColorBrush x:Key="MaberSecondaryTextBrush" Color="#6B717A"/>
+          <SolidColorBrush x:Key="MaberTabHoverBackgroundBrush" Color="#F0F0EB"/>
+          <SolidColorBrush x:Key="MaberTabSelectedBackgroundBrush" Color="#E8E8E2"/>
+          <SolidColorBrush x:Key="MaberGhostHoverBackgroundBrush" Color="#EEEEE9"/>
+          <SolidColorBrush x:Key="MaberGhostPressedBackgroundBrush" Color="#E4E4DE"/>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Default">
+          <SolidColorBrush x:Key="MaberWindowBackgroundBrush" Color="#16181D"/>
+          <SolidColorBrush x:Key="MaberSidebarBackgroundBrush" Color="#121418"/>
+          <SolidColorBrush x:Key="MaberSidebarBorderBrush" Color="#262A31"/>
+          <SolidColorBrush x:Key="MaberSecondaryTextBrush" Color="#8B929A"/>
+          <SolidColorBrush x:Key="MaberTabHoverBackgroundBrush" Color="#1E2229"/>
+          <SolidColorBrush x:Key="MaberTabSelectedBackgroundBrush" Color="#272B33"/>
+          <SolidColorBrush x:Key="MaberGhostHoverBackgroundBrush" Color="#1E2229"/>
+          <SolidColorBrush x:Key="MaberGhostPressedBackgroundBrush" Color="#272B33"/>
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- 侧栏标签：默认透明，悬停淡染，选中仅用一层浅底，避免默认 ToggleButton 的重灰块 -->
+      <Style x:Key="SidebarTabStyle" TargetType="ToggleButton">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberSecondaryTextBrush}"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="ToggleButton">
+              <Grid>
+                <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                        CornerRadius="6" Padding="{TemplateBinding Padding}">
+                  <ContentPresenter Content="{TemplateBinding Content}"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <VisualStateManager.VisualStateGroups>
+                  <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal"/>
+                    <VisualState x:Name="PointerOver">
+                      <VisualState.Setters>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberTabHoverBackgroundBrush}"/>
+                      </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                      <VisualState.Setters>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberTabSelectedBackgroundBrush}"/>
+                      </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled"/>
+                  </VisualStateGroup>
+                  <VisualStateGroup x:Name="CheckStates">
+                    <VisualState x:Name="Unchecked"/>
+                    <VisualState x:Name="Checked">
+                      <VisualState.Setters>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberTabSelectedBackgroundBrush}"/>
+                      </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Indeterminate"/>
+                  </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+              </Grid>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+
+      <!-- 幽灵按钮：设置入口与标题栏 ☰，无边框无底色，只有悬停反馈 -->
+      <Style x:Key="GhostButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberSecondaryTextBrush}"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="Button">
+              <Grid>
+                <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                  <ContentPresenter Content="{TemplateBinding Content}"
+                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalAlignment="Center"/>
+                </Border>
+                <VisualStateManager.VisualStateGroups>
+                  <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal"/>
+                    <VisualState x:Name="PointerOver">
+                      <VisualState.Setters>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberGhostHoverBackgroundBrush}"/>
+                      </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Pressed">
+                      <VisualState.Setters>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberGhostPressedBackgroundBrush}"/>
+                      </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="Disabled"/>
+                  </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+              </Grid>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

@@ -4,6 +4,7 @@ export type HostMessage =
   | { type: "setMode"; mode: "render" | "source" }
   | { type: "setTheme"; theme: "light" | "dark" }
   | { type: "setTypography"; fontFamily: string; fontSize: number; lineHeight: number; contentWidth: number }
+  | { type: "setEmptyState"; visible: boolean }
   | { type: "scrollToHeading"; line: number }
   | { type: "find"; query: string; direction: 1 | -1 };
 
