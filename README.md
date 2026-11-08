@@ -1,10 +1,10 @@
 # Maber
 
-类 Typora 的极简 Markdown 阅读器，为 Obsidian 笔记库优化。WinUI 3 原生壳 + WebView2 渲染内核，原生窗口的轻量与 Web 排版生态兼得。
+类 Typora 的极简 Markdown 阅读器，为随时打开散落各处的 Markdown 文档而设计：像 Notepad 一样轻快，不要求工作区或笔记库。WinUI 3 原生壳 + WebView2 渲染内核，原生窗口的轻量与 Web 排版生态兼得。
 
-v0.3.9「Refresh」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
+v0.4.0「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
 
-![status](https://img.shields.io/badge/version-v0.3.9-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
+![status](https://img.shields.io/badge/version-v0.4.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
 
 ## 特性
 
@@ -20,19 +20,34 @@ v0.3.9「Refresh」采用 Paper & Ink 设计语言：暖纸底色、墨色文字
 - Paper & Ink 设计系统：暖中性底色、1px 描边、单一陶土强调色，明暗双主题同源
 - 「折页 M」品牌标记与应用图标（16–256 多尺寸）
 - 阅读字体预设：系统默认、微软雅黑、霞鹜文楷（屏幕阅读）、得意黑、宋体、楷体、等宽
+- 本地字体：搜索并选择系统已安装字体，或导入 `.ttf / .otf / .ttc` 字体文件
+- 正文与代码字体、代码字号分别设置
+
+**设置（v0.4）**
+
+- 独立设置窗口，外观 / 阅读 / 快捷键 / 文件与最近 / 关于五个分类，与主界面共用 Paper & Ink
+- 自定义快捷键：点击录制、冲突检测、单项或全部恢复默认
+- 侧栏默认展开与宽度、窗口大小与位置记忆
+- 最近文件上限、启动行为（空白页 / 恢复上次文件）、外部修改策略
+- 数学公式 / Mermaid 渲染开关，实时预览字体与排版
+
+**随时打开**
+
+- `Ctrl+P` 快速打开：模糊搜索最近文件，扫描当前文件所在目录（深度 2），也可直接粘贴完整路径
+- 文件拖入窗口直接打开
+- 记住每个文件的阅读位置，再次打开回到上次滚动处
 
 **完整模式（Total Mode）**
 
 - 直接启动进入 Total：左侧栏含大纲 / 最近文件 / 语法速查，`Ctrl+B` 折叠
-- 最近文件自动记录、去重（上限 20），失效路径自动剔除
-- 设置：主题（跟随系统 / 浅色 / 深色）、字体、字号、行高、阅读宽度，改动实时生效并持久化
+- 最近文件自动记录、去重（默认上限 20，可调 5–50），失效路径自动剔除
 - 带文件参数启动仍进入 Slim Mode：无侧栏，保持单文件极简阅读
 
 **导航与编辑**
 
 - `Ctrl+E` 阅读 / 源码双模式（源码为 CodeMirror，带高亮与查找）
 - `Ctrl+K` 大纲：Total 下切到侧栏，Slim 下悬浮弹层，点击跳转对应标题
-- `Ctrl+F` 页内查找，两种模式均支持，Enter / Shift+Enter 循环跳转
+- `Ctrl+F` 页内查找，支持全词匹配与搜索历史，Enter / Shift+Enter 循环跳转
 - 任务复选框 `- [ ]` 点击即写回源文件
 
 **文件**
@@ -44,6 +59,8 @@ v0.3.9「Refresh」采用 Paper & Ink 设计语言：暖纸底色、墨色文字
 
 ## 快捷键
 
+以下为默认绑定，可在设置中逐项修改。
+
 | 快捷键 | 功能 |
 |---|---|
 | `Ctrl+O` | 打开文件 |
@@ -52,6 +69,8 @@ v0.3.9「Refresh」采用 Paper & Ink 设计语言：暖纸底色、墨色文字
 | `Ctrl+K` | 大纲 |
 | `Ctrl+F` | 页内查找 |
 | `Ctrl+B` | 折叠 / 展开侧栏（仅 Total） |
+| `Ctrl+P` | 快速打开 |
+| `Ctrl+,` | 设置 |
 
 ## 构建
 
@@ -77,9 +96,9 @@ dotnet run --project src/Maber.App
 └─ Maber.Core（无 UI 依赖：编码检测、非独占读写、外部修改监视、设置存储，xunit 覆盖）
 ```
 
-设置与最近文件存放于 `%LOCALAPPDATA%\Maber\settings.json`。
+设置与最近文件存放于 `%LOCALAPPDATA%\Maber\settings.json`，阅读位置与导入字体分别在 `reading-state.json` 与 `fonts\` 目录。
 
-## 当前限制（v0.3.9）
+## 当前限制（v0.4.0）
 
 - 无 vault / 工作区概念，wikilink 按当前文件位置逐级向上解析
 - 源码模式为纯编辑器，非所见即所得
