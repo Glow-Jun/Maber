@@ -41,6 +41,7 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
         ModeBadge.Text = "阅读";
         ApplyChromeTheme();
+        UpdateDateLabel();
         if (_totalMode)
         {
             SidebarToggle.Visibility = Visibility.Visible;
@@ -84,6 +85,7 @@ public sealed partial class MainWindow : Window
         {
             if (e.WindowActivationState == WindowActivationState.Deactivated) return;
             ApplyChromeTheme(); // 跟随系统时，系统主题可能在后台已切换
+            UpdateDateLabel();  // 跨零点后回到窗口时刷新
             SendTheme();
         };
 
@@ -759,6 +761,14 @@ public sealed partial class MainWindow : Window
     }
 
     // ---------- 侧栏 ----------
+    /// <summary>底栏日期：11月8日 | 周六</summary>
+    private void UpdateDateLabel()
+    {
+        var now = DateTime.Now;
+        var week = "日一二三四五六"[(int)now.DayOfWeek];
+        DateText.Text = $"{now.Month}月{now.Day}日 | 周{week}";
+    }
+
     private void OnToggleSidebar(object s, RoutedEventArgs e) => ToggleSidebar();
 
     private void ToggleSidebar()
