@@ -2,7 +2,7 @@
 
 类 Typora 的极简 Markdown 阅读器，为 Obsidian 笔记库优化。WinUI 3 原生壳 + WebView2 渲染内核，原生窗口的轻量与 Web 排版生态兼得。
 
-![status](https://img.shields.io/badge/version-v0.2.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
+![status](https://img.shields.io/badge/version-v0.2.1-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
 
 ## 特性
 
@@ -11,7 +11,7 @@
 - Obsidian 风格渲染：段内单换行即换行、续行缩进保留、`==高亮==`、`%%注释%%`、`#标签`、callout、`[[wikilink]]` 与 `![[嵌入]]`
 - KaTeX 数学公式（`$...$` 与 `$$...$$`）、Mermaid 图表（懒加载，遇到才渲染）
 - frontmatter 以元信息条形式展示，不混入正文
-- 明暗主题可跟随系统，也可手动指定
+- 默认浅色（浅底深字），可切换跟随系统或深色
 
 **完整模式（Total Mode）**
 
@@ -71,7 +71,7 @@ dotnet run --project src/Maber.App
 
 设置与最近文件存放于 `%LOCALAPPDATA%\Maber\settings.json`。
 
-## 当前限制（v0.2.0）
+## 当前限制（v0.2.1）
 
 - 无 vault / 工作区概念，wikilink 按当前文件位置逐级向上解析
 - 源码模式为纯编辑器，非所见即所得
