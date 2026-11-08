@@ -7,7 +7,6 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Foundation;
 using Windows.System;
@@ -34,7 +33,6 @@ public sealed partial class MainWindow : Window
 
     private readonly bool _totalMode;
     private bool _sidebarOpen = true;
-    private bool _sidebarAnimating;
     private ToggleButton? _currentSidebarTab;
     private Storyboard? _sidebarStory;
 
@@ -803,66 +801,44 @@ public sealed partial class MainWindow : Window
 
     private void ToggleSidebar() => SetSidebarOpen(!_sidebarOpen);
 
-    /// <summary>侧栏以宽度过渡展开/收起，主面板同步回流</summary>
+    /// <summary>侧栏作为抽屉整体向左滑出，主面板不参与布局变化</summary>
     private void SetSidebarOpen(bool open)
     {
-        if (!_totalMode || _sidebarAnimating || _sidebarOpen == open) return;
+        if (!_totalMode || _sidebarOpen == open) return;
         _sidebarOpen = open;
-        _sidebarAnimating = true;
+        _sidebarStory?.Stop();
 
-        if (open)
+        if (open && Sidebar.Visibility != Visibility.Visible)
         {
             Sidebar.Visibility = Visibility.Visible;
-            Sidebar.Width = 0;
-            SidebarContent.Opacity = 0;
+            SidebarTransform.X = -Sidebar.Width;
         }
 
-        var width = new DoubleAnimation
+        var slide = new DoubleAnimation
         {
-            To = open ? 240 : 0,
-            Duration = TimeSpan.FromMilliseconds(200),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            To = open ? 0 : -Sidebar.Width,
+            Duration = TimeSpan.FromMilliseconds(open ? 220 : 180),
+            EasingFunction = new CubicEase
+            {
+                EasingMode = open ? EasingMode.EaseOut : EasingMode.EaseIn
+            }
         };
-        Storyboard.SetTarget(width, Sidebar);
-        Storyboard.SetTargetProperty(width, "Width");
+        Storyboard.SetTarget(slide, SidebarTransform);
+        Storyboard.SetTargetProperty(slide, "X");
 
-        var fade = new DoubleAnimation
-        {
-            To = open ? 1 : 0,
-            Duration = TimeSpan.FromMilliseconds(open ? 160 : 110),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-        Storyboard.SetTarget(fade, SidebarContent);
-        Storyboard.SetTargetProperty(fade, "Opacity");
-
-        _sidebarStory?.Stop();
         var story = new Storyboard();
-        story.Children.Add(width);
-        story.Children.Add(fade);
+        story.Children.Add(slide);
         story.Completed += (_, _) =>
         {
             _sidebarStory = null;
-            _sidebarAnimating = false;
-            if (_sidebarOpen)
-            {
-                Sidebar.Width = 240;
-                SidebarContent.Opacity = 1;
-            }
-            else
+            if (!_sidebarOpen)
             {
                 Sidebar.Visibility = Visibility.Collapsed;
+                SidebarTransform.X = 0;
             }
         };
         _sidebarStory = story;
         story.Begin();
-    }
-
-    private void OnSidebarSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        Sidebar.Clip = new RectangleGeometry
-        {
-            Rect = new Rect(0, 0, Math.Max(0, e.NewSize.Width), Math.Max(0, e.NewSize.Height))
-        };
     }
 
     // ---------- 快捷键 ----------
@@ -894,11 +870,9 @@ public sealed partial class MainWindow : Window
         if (_totalMode)
         {
             _sidebarStory?.Stop();
-            _sidebarAnimating = false;
             _sidebarOpen = true;
-            Sidebar.Width = 240;
-            SidebarContent.Opacity = 1;
             Sidebar.Visibility = Visibility.Visible;
+            SidebarTransform.X = 0;
             SelectSidebarTab(TabOutline);
             RefreshSidebarOutline();
             return;

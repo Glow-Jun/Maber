@@ -36,11 +36,14 @@
       </Grid.ColumnDefinitions>
 
       <!-- Total Mode 侧栏：大纲 / 最近 / 速查 + 设置入口 -->
-      <Border x:Name="Sidebar" Grid.Column="0" Width="240" Visibility="Collapsed"
+      <Border x:Name="Sidebar" Grid.Column="0" Grid.ColumnSpan="2" Width="240" Visibility="Collapsed"
+              HorizontalAlignment="Left" Canvas.ZIndex="10"
               Background="{ThemeResource MaberSidebarBackgroundBrush}"
-              BorderBrush="{ThemeResource MaberSidebarBorderBrush}" BorderThickness="0,0,1,0"
-              SizeChanged="OnSidebarSizeChanged">
-        <Grid x:Name="SidebarContent">
+              BorderBrush="{ThemeResource MaberSidebarBorderBrush}" BorderThickness="0,0,1,0">
+        <Border.RenderTransform>
+          <TranslateTransform x:Name="SidebarTransform"/>
+        </Border.RenderTransform>
+        <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
