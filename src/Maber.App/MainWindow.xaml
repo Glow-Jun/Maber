@@ -10,20 +10,21 @@
     </Grid.RowDefinitions>
 
     <!-- 极简标题栏：侧栏开关（仅 Total，位于拖拽区外）+ 拖拽区 + 文件名 + 模式指示 -->
-    <Grid x:Name="TitleBar" Grid.Row="0" Height="36" Background="Transparent">
+    <Grid x:Name="TitleBar" Grid.Row="0" Height="40" Background="Transparent">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition Width="*"/>
       </Grid.ColumnDefinitions>
 
-      <Button x:Name="SidebarToggle" Grid.Column="0" Content="☰" FontSize="14" Padding="8,0"
+      <Button x:Name="SidebarToggle" Grid.Column="0" Content="☰" FontSize="15" Padding="0"
+              Width="32" Height="32" Margin="6,0,0,0"
               Style="{StaticResource GhostButtonStyle}" VerticalAlignment="Center"
               Click="OnToggleSidebar" Visibility="Collapsed"/>
 
       <Grid x:Name="AppTitleBar" Grid.Column="1" Background="Transparent">
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="8,0,0,0">
-          <TextBlock x:Name="TitleText" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
-          <TextBlock x:Name="ModeBadge" VerticalAlignment="Center" FontSize="11" Opacity="0.6"/>
+        <StackPanel Orientation="Horizontal" Spacing="10" Margin="10,0,0,0">
+          <TextBlock x:Name="TitleText" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13"/>
+          <TextBlock x:Name="ModeBadge" VerticalAlignment="Center" FontSize="11" Opacity="0.55"/>
         </StackPanel>
       </Grid>
     </Grid>
@@ -45,7 +46,7 @@
             <RowDefinition Height="Auto"/>
           </Grid.RowDefinitions>
 
-          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Margin="8,10,8,6"
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="8,14,8,8"
                       HorizontalAlignment="Center">
             <ToggleButton x:Name="TabOutline" Content="大纲" IsChecked="True"
                           Style="{StaticResource SidebarTabStyle}" Click="OnSidebarTab"/>
@@ -56,9 +57,25 @@
           </StackPanel>
 
           <Grid Grid.Row="1">
-            <ListView x:Name="SidebarOutline" IsItemClickEnabled="True" ItemClick="SidebarOutline_ItemClick"/>
+            <ListView x:Name="SidebarOutline" IsItemClickEnabled="True" ItemClick="SidebarOutline_ItemClick">
+              <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                  <Setter Property="Padding" Value="12,5"/>
+                  <Setter Property="MinHeight" Value="32"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                </Style>
+              </ListView.ItemContainerStyle>
+            </ListView>
             <ListView x:Name="SidebarRecent" Visibility="Collapsed" IsItemClickEnabled="True"
-                      ItemClick="SidebarRecent_ItemClick"/>
+                      ItemClick="SidebarRecent_ItemClick">
+              <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                  <Setter Property="Padding" Value="12,6"/>
+                  <Setter Property="MinHeight" Value="34"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                </Style>
+              </ListView.ItemContainerStyle>
+            </ListView>
             <ScrollViewer x:Name="CheatScroll" Visibility="Collapsed" Padding="12,4,12,12" FontSize="12"
                           VerticalScrollBarVisibility="Auto">
               <StackPanel x:Name="CheatPanel" Spacing="7">
@@ -80,23 +97,26 @@
           </Grid>
 
           <!-- 底栏：齿轮贴左，日期贴右 -->
-          <Grid Grid.Row="2" Margin="8,4,8,8">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto"/>
-              <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+          <Border Grid.Row="2" BorderBrush="{ThemeResource MaberSidebarBorderBrush}"
+                  BorderThickness="0,1,0,0" Padding="10,8,12,10">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
 
-            <Button x:Name="SettingsButton" Grid.Column="0" Width="32" Height="32"
-                    Padding="0" HorizontalAlignment="Left"
-                    Style="{StaticResource GhostButtonStyle}" Click="OnOpenSettings"
-                    AutomationProperties.Name="设置" ToolTipService.ToolTip="设置">
-              <FontIcon Glyph="&#xE713;" FontSize="14"/>
-            </Button>
+              <Button x:Name="SettingsButton" Grid.Column="0" Width="34" Height="34"
+                      Padding="0" HorizontalAlignment="Left"
+                      Style="{StaticResource GhostButtonStyle}" Click="OnOpenSettings"
+                      AutomationProperties.Name="设置" ToolTipService.ToolTip="设置">
+                <FontIcon Glyph="&#xE713;" FontSize="16"/>
+              </Button>
 
-            <TextBlock x:Name="DateText" Grid.Column="1" HorizontalAlignment="Right"
-                       VerticalAlignment="Center" FontSize="11" Margin="8,0,2,0"
-                       Foreground="{ThemeResource MaberSecondaryTextBrush}"/>
-          </Grid>
+              <TextBlock x:Name="DateText" Grid.Column="1" HorizontalAlignment="Right"
+                         VerticalAlignment="Center" FontSize="12" Margin="8,0,2,0"
+                         Foreground="{ThemeResource MaberSecondaryTextBrush}"/>
+            </Grid>
+          </Border>
         </Grid>
       </Border>
 

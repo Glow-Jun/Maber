@@ -532,17 +532,17 @@ public sealed partial class MainWindow : Window
     /// <summary>WinUI 侧（标题栏/弹层/对话框）跟随设置；system 交给系统默认</summary>
     private void ApplyChromeTheme()
     {
-        if (Content is FrameworkElement root)
-        {
-            root.RequestedTheme = SettingsHost.Current.Theme switch
-            {
-                "light" => ElementTheme.Light,
-                "dark" => ElementTheme.Dark,
-                _ => ElementTheme.Default,
-            };
-        }
+        if (Content is FrameworkElement root) root.RequestedTheme = CurrentElementTheme;
         ApplyCaptionButtonTheme();
     }
+
+    /// <summary>根元素与 ContentDialog 都按这个主题渲染（弹层不继承根元素 RequestedTheme）</summary>
+    private static ElementTheme CurrentElementTheme => SettingsHost.Current.Theme switch
+    {
+        "light" => ElementTheme.Light,
+        "dark" => ElementTheme.Dark,
+        _ => ElementTheme.Default,
+    };
 
     /// <summary>
     /// 系统标题栏按钮不跟随元素级 RequestedTheme，需显式上色；
@@ -701,7 +701,7 @@ public sealed partial class MainWindow : Window
 
         SyncFromSettings();
 
-        var panel = new StackPanel { Spacing = 16, MinWidth = 340 };
+        var panel = new StackPanel { Spacing = 18, MinWidth = 360 };
         panel.Children.Add(LabeledRow("主题", themeBox));
         panel.Children.Add(LabeledRow("字体", fontBox));
         panel.Children.Add(SliderRow("字号", sizeSlider, sizeValue));
@@ -711,6 +711,7 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = Content.XamlRoot,
+            RequestedTheme = CurrentElementTheme,
             Title = "设置",
             Content = new ScrollViewer { Content = panel, MaxHeight = 520 },
             PrimaryButtonText = "完成",
@@ -730,7 +731,7 @@ public sealed partial class MainWindow : Window
 
     private static StackPanel LabeledRow(string label, FrameworkElement control)
     {
-        var row = new StackPanel { Spacing = 4 };
+        var row = new StackPanel { Spacing = 5 };
         row.Children.Add(new TextBlock { Text = label, FontSize = 12, Opacity = 0.7 });
         row.Children.Add(control);
         return row;
@@ -741,7 +742,7 @@ public sealed partial class MainWindow : Window
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         head.Children.Add(new TextBlock { Text = label, FontSize = 12, Opacity = 0.7 });
         head.Children.Add(value);
-        var row = new StackPanel { Spacing = 2 };
+        var row = new StackPanel { Spacing = 3 };
         row.Children.Add(head);
         row.Children.Add(slider);
         return row;
@@ -865,10 +866,11 @@ public sealed partial class MainWindow : Window
         }
         foreach (var path in files)
         {
-            var stack = new StackPanel { Margin = new Thickness(4, 2, 4, 2) };
+            var stack = new StackPanel();
             stack.Children.Add(new TextBlock
             {
                 Text = Path.GetFileName(path),
+                FontSize = 13,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });
             stack.Children.Add(new TextBlock
@@ -906,6 +908,7 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = Content.XamlRoot,
+            RequestedTheme = CurrentElementTheme,
             Title = "未保存的更改",
             Content = "切换文件会丢失当前未保存的修改。",
             PrimaryButtonText = "放弃更改",
