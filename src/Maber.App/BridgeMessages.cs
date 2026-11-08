@@ -8,8 +8,10 @@ public static class BridgeMessages
     public const string SetMode = "setMode";
     public const string SetTheme = "setTheme";
     public const string SetTypography = "setTypography";
+    public const string SetShortcuts = "setShortcuts";
     public const string SetEmptyState = "setEmptyState";
     public const string ScrollToHeading = "scrollToHeading";
+    public const string RestoreReadingPosition = "restoreReadingPosition";
     public const string Find = "find";
 
     // Web → 宿主
@@ -18,6 +20,7 @@ public static class BridgeMessages
     public const string OutlineChanged = "outlineChanged";
     public const string CheckboxToggled = "checkboxToggled";
     public const string ContentChanged = "contentChanged";
+    public const string ReadingPosition = "readingPosition";
     public const string OpenLink = "openLink";
     public const string OpenWikilink = "openWikilink";
     public const string Diag = "diag";

@@ -287,8 +287,8 @@
 
     <!-- 大纲悬浮（Ctrl+K）。Popup 在 Primitives 命名空间（计划的 muxc:Popup 为笔误） -->
     <primitives:Popup x:Name="OutlinePopup" IsLightDismissEnabled="True">
-      <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
-              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+      <Border Background="{ThemeResource MaberSurfaceBrush}"
+              BorderBrush="{ThemeResource MaberSidebarBorderBrush}" BorderThickness="1"
               CornerRadius="10" Padding="8" Width="280" MaxHeight="480">
         <ScrollViewer>
           <ListView x:Name="OutlineList" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="OutlineList_ItemClick"/>
@@ -298,12 +298,36 @@
 
     <!-- 查找悬浮（Ctrl+F，Enter 下一个 / Shift+Enter 上一个） -->
     <primitives:Popup x:Name="FindPopup" IsLightDismissEnabled="True">
-      <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
-              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+      <Border Background="{ThemeResource MaberSurfaceBrush}"
+              BorderBrush="{ThemeResource MaberSidebarBorderBrush}" BorderThickness="1"
               CornerRadius="10" Padding="10">
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBox x:Name="FindBox" MinWidth="260" KeyDown="FindBox_KeyDown"/>
+          <TextBox x:Name="FindBox" MinWidth="220" KeyDown="FindBox_KeyDown"/>
+          <ToggleButton x:Name="FindWholeWord" Content="全词" FontSize="12" Padding="9,4"
+                        Checked="OnFindModeChanged" Unchecked="OnFindModeChanged"/>
+          <Button Content="历史" FontSize="12" Padding="9,4">
+            <Button.Flyout>
+              <MenuFlyout x:Name="FindHistoryFlyout" Opening="OnFindHistoryOpening"/>
+            </Button.Flyout>
+          </Button>
           <muxc:Button Content="下一个" Click="OnFindNext"/>
+        </StackPanel>
+      </Border>
+    </primitives:Popup>
+
+    <!-- 快速打开（Ctrl+P）：最近文件 / 当前目录 / 绝对路径 -->
+    <primitives:Popup x:Name="QuickOpenPopup" IsLightDismissEnabled="True">
+      <Border Background="{ThemeResource MaberSurfaceBrush}"
+              BorderBrush="{ThemeResource MaberSidebarBorderBrush}" BorderThickness="1"
+              CornerRadius="10" Padding="12" Width="560">
+        <StackPanel Spacing="8">
+          <TextBox x:Name="QuickOpenBox"
+                   PlaceholderText="搜索最近文件、当前目录，或输入完整路径"
+                   KeyDown="QuickOpenBox_KeyDown" TextChanged="QuickOpenBox_TextChanged"/>
+          <ListView x:Name="QuickOpenList" MaxHeight="320" IsItemClickEnabled="True"
+                    ItemClick="QuickOpenList_ItemClick" SelectionMode="Single"/>
+          <TextBlock x:Name="QuickOpenHint" FontSize="11" Opacity="0.55"
+                     Text="↑↓ 选择 · Enter 打开 · Esc 关闭"/>
         </StackPanel>
       </Border>
     </primitives:Popup>

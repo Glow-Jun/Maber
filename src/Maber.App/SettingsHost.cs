@@ -9,7 +9,13 @@ public static class SettingsHost
 {
     private static readonly SettingsStore Store = new();
 
-    public static AppSettings Current { get; private set; } = Store.Load();
+    public static AppSettings Current { get; private set; } = Prune(Store.Load());
+
+    private static AppSettings Prune(AppSettings settings) => settings with
+    {
+        // 设置文件可能在另一台机器/手动清理后残留失效字体路径
+        CustomFonts = settings.CustomFonts.Where(f => File.Exists(f.File)).ToList(),
+    };
 
     public static event EventHandler? Changed;
 
@@ -26,7 +32,7 @@ public static class SettingsHost
     {
         var next = new List<string> { path };
         next.AddRange(Current.RecentFiles);
-        Current = Current with { RecentFiles = AppSettings.NormalizeRecent(next) };
+        Current = Current with { RecentFiles = AppSettings.NormalizeRecent(next, Current.RecentLimit) };
         Persist();
         Changed?.Invoke(null, EventArgs.Empty);
     }

@@ -14,8 +14,7 @@ public sealed class SettingsStore
 
     public string FilePath { get; }
 
-    public SettingsStore(string? path = null) => FilePath = path ?? Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Maber", "settings.json");
+    public SettingsStore(string? path = null) => FilePath = path ?? MaberPaths.SettingsFile;
 
     public AppSettings Load()
     {
@@ -24,14 +23,15 @@ public sealed class SettingsStore
             if (!File.Exists(FilePath)) return new AppSettings().Normalize();
             var json = File.ReadAllText(FilePath);
             var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
-            // v0.2.0 及更早没有 schema 字段，默认值是「跟随系统」；本版起默认浅色，一次性迁移
-            if (loaded.Schema < AppSettings.SettingsSchema && loaded.Theme == "system")
+            // v0.2.0 及更早没有 schema 字段，默认值是「跟随系统」；schema 2 起默认浅色，只迁移一次。
+            // 已经是 schema 2/3 的用户明确选过 system，必须保留。
+            if (loaded.Schema < 2 && loaded.Theme == "system")
                 loaded = loaded with { Theme = "light" };
             return loaded.Normalize();
         }
         catch
         {
-            return new AppSettings();
+            return new AppSettings().Normalize();
         }
     }
 

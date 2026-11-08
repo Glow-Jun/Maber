@@ -10,6 +10,13 @@
       <!-- Paper & Ink：暖纸中性 + 墨色文字 + 单一陶土强调 -->
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
+          <Color x:Key="SystemAccentColor">#C96442</Color>
+          <Color x:Key="SystemAccentColorLight1">#D97A5B</Color>
+          <Color x:Key="SystemAccentColorLight2">#E39A80</Color>
+          <Color x:Key="SystemAccentColorLight3">#EDBAA6</Color>
+          <Color x:Key="SystemAccentColorDark1">#A94F33</Color>
+          <Color x:Key="SystemAccentColorDark2">#8A3F28</Color>
+          <Color x:Key="SystemAccentColorDark3">#6B2F1D</Color>
           <SolidColorBrush x:Key="MaberWindowBackgroundBrush" Color="#FAF9F5"/>
           <SolidColorBrush x:Key="MaberSurfaceBrush" Color="#FFFFFF"/>
           <SolidColorBrush x:Key="MaberSidebarBackgroundBrush" Color="#F5F3EC"/>
@@ -23,6 +30,13 @@
           <SolidColorBrush x:Key="MaberPressedBackgroundBrush" Color="#141F1E1C"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Default">
+          <Color x:Key="SystemAccentColor">#E08A6B</Color>
+          <Color x:Key="SystemAccentColorLight1">#E79C81</Color>
+          <Color x:Key="SystemAccentColorLight2">#EEB09A</Color>
+          <Color x:Key="SystemAccentColorLight3">#F4C3B2</Color>
+          <Color x:Key="SystemAccentColorDark1">#C97657</Color>
+          <Color x:Key="SystemAccentColorDark2">#B06245</Color>
+          <Color x:Key="SystemAccentColorDark3">#964F36</Color>
           <SolidColorBrush x:Key="MaberWindowBackgroundBrush" Color="#141413"/>
           <SolidColorBrush x:Key="MaberSurfaceBrush" Color="#1B1A18"/>
           <SolidColorBrush x:Key="MaberSidebarBackgroundBrush" Color="#121110"/>
@@ -96,6 +110,81 @@
             </ControlTemplate>
           </Setter.Value>
         </Setter>
+      </Style>
+
+      <!-- 设置窗口：与主界面共用 Paper & Ink 容器、排版与控件语言 -->
+      <Style x:Key="SettingsPageTitleStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="22"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberPrimaryTextBrush}"/>
+        <Setter Property="Margin" Value="0,2,0,2"/>
+      </Style>
+      <Style x:Key="SettingsPageDescStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberSecondaryTextBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Margin" Value="0,0,0,10"/>
+      </Style>
+      <Style x:Key="SettingsSectionStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberSecondaryTextBrush}"/>
+        <Setter Property="CharacterSpacing" Value="60"/>
+        <Setter Property="Margin" Value="2,10,0,4"/>
+      </Style>
+      <Style x:Key="SettingsCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource MaberSurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{ThemeResource MaberSidebarBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="18,10"/>
+      </Style>
+      <Style x:Key="SettingsLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberPrimaryTextBrush}"/>
+      </Style>
+      <Style x:Key="SettingsDescStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberSecondaryTextBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+      </Style>
+      <Style x:Key="SettingsValueStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberSecondaryTextBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+      </Style>
+      <Style x:Key="SettingsComboBoxStyle" TargetType="ComboBox">
+        <Setter Property="MinWidth" Value="180"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="Background" Value="{ThemeResource MaberSurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{ThemeResource MaberSidebarBorderBrush}"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+      </Style>
+      <Style x:Key="SettingsSliderStyle" TargetType="Slider">
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+      </Style>
+      <Style x:Key="SettingsToggleStyle" TargetType="ToggleSwitch">
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+      </Style>
+      <Style x:Key="SettingsButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{ThemeResource MaberSidebarBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{ThemeResource MaberPrimaryTextBrush}"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="Padding" Value="12,4"/>
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="MinHeight" Value="30"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+      </Style>
+      <Style x:Key="SettingsNavButtonStyle" TargetType="Button" BasedOn="{StaticResource GhostButtonStyle}">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="UseSystemFocusVisuals" Value="False"/>
       </Style>
     </ResourceDictionary>
   </Application.Resources>

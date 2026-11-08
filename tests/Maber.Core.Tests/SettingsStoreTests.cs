@@ -128,8 +128,16 @@ public class SettingsStoreTests : IDisposable
 
         var list = AppSettings.NormalizeRecent(input);
 
-        Assert.Equal(AppSettings.MaxRecentFiles, list.Count);
-        Assert.Equal(files.Take(AppSettings.MaxRecentFiles), list);
+        Assert.Equal(AppSettings.DefaultRecentLimit, list.Count);
+        Assert.Equal(files.Take(AppSettings.DefaultRecentLimit), list);
+    }
+
+    [Fact]
+    public void NormalizeRecent_HonorsCustomLimit()
+    {
+        var files = Enumerable.Range(0, 8).Select(i => Touch($"n{i}.md")).ToList();
+        var list = AppSettings.NormalizeRecent(files, 3);
+        Assert.Equal(files.Take(3), list);
     }
 
     [Fact]
@@ -138,5 +146,85 @@ public class SettingsStoreTests : IDisposable
         var a = Touch("a.md");
         var b = Touch("b.md");
         Assert.Equal(new[] { b, a }, AppSettings.NormalizeRecent(new[] { b, a }));
+    }
+
+    [Fact]
+    public void Normalize_ClampsNewSettings()
+    {
+        var s = new AppSettings
+        {
+            SidebarWidth = 999,
+            RecentLimit = 1,
+            CodeFontSize = 99,
+            StartupBehavior = "nope",
+            ExternalChangeMode = "nope",
+            Window = new WindowBounds(0, 0, 100, 100, false),
+            CustomFonts = new()
+            {
+                new CustomFont("C:\\a.ttf", "A"),
+                new CustomFont("C:\\a.ttf", "A2"),
+                new CustomFont("", "B"),
+            },
+            Shortcuts = new()
+            {
+                ["open"] = "ctrl+shift+o",
+                ["missing"] = "Ctrl+Q",
+                ["save"] = "NotAKey",
+            },
+        }.Normalize();
+
+        Assert.Equal(320, s.SidebarWidth);
+        Assert.Equal(5, s.RecentLimit);
+        Assert.Equal(20, s.CodeFontSize);
+        Assert.Equal("empty", s.StartupBehavior);
+        Assert.Equal("auto", s.ExternalChangeMode);
+        Assert.Null(s.Window);
+        Assert.Single(s.CustomFonts);
+        Assert.Equal("Ctrl+Shift+O", s.Shortcuts["open"]);
+        Assert.False(s.Shortcuts.ContainsKey("missing"));
+        Assert.False(s.Shortcuts.ContainsKey("save"));
+    }
+
+    [Fact]
+    public void SaveLoad_RoundTripsV3Fields()
+    {
+        var saved = new AppSettings
+        {
+            FontFamily = "custom",
+            CustomFontFamily = "LXGW WenKai",
+            CodeFontFamily = "Cascadia Code",
+            CodeFontSize = 14,
+            RenderMath = false,
+            SidebarOpenByDefault = false,
+            SidebarWidth = 280,
+            RecentLimit = 30,
+            StartupBehavior = "last",
+            ExternalChangeMode = "prompt",
+            RestoreReadingPosition = false,
+            RememberWindowBounds = false,
+            Window = new WindowBounds(100, 80, 1200, 840, true),
+            Shortcuts = new() { ["quickOpen"] = "Ctrl+Shift+P" },
+            FindHistory = new() { "alpha", "beta", "alpha" },
+        };
+        var store = new SettingsStore(_file);
+        store.Save(saved);
+
+        var loaded = store.Load();
+
+        Assert.Equal("custom", loaded.FontFamily);
+        Assert.Equal("LXGW WenKai", loaded.CustomFontFamily);
+        Assert.Equal("Cascadia Code", loaded.CodeFontFamily);
+        Assert.Equal(14, loaded.CodeFontSize);
+        Assert.False(loaded.RenderMath);
+        Assert.False(loaded.SidebarOpenByDefault);
+        Assert.Equal(280, loaded.SidebarWidth);
+        Assert.Equal(30, loaded.RecentLimit);
+        Assert.Equal("last", loaded.StartupBehavior);
+        Assert.Equal("prompt", loaded.ExternalChangeMode);
+        Assert.False(loaded.RestoreReadingPosition);
+        Assert.False(loaded.RememberWindowBounds);
+        Assert.Equal(new WindowBounds(100, 80, 1200, 840, true), loaded.Window);
+        Assert.Equal("Ctrl+Shift+P", loaded.Shortcuts["quickOpen"]);
+        Assert.Equal(new[] { "alpha", "beta" }, loaded.FindHistory);
     }
 }

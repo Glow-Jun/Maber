@@ -9,7 +9,7 @@ import type { SourceEditor } from "./editor"; // 仅类型；实现按需动态 
 import { find, clearFind } from "./search";
 import { applyTypography } from "./typography";
 import { send, onHostMessage } from "./bridge";
-import type { AcceleratorKey, ViewMode } from "./types";
+import type { ViewMode } from "./types";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -17,10 +17,18 @@ app.innerHTML = `
   <article id="content"></article>
   <div id="editor-host"></div>`;
 
-const md = mathPlugin(obsidianPlugins(buildRenderer()));
+const appEl = document.querySelector<HTMLElement>("#app")!;
 const content = document.querySelector<HTMLElement>("#content")!;
 const fmBox = document.querySelector<HTMLElement>("#frontmatter")!;
 const emptyBox = document.querySelector<HTMLElement>("#empty")!;
+
+// 渲染特性由设置控制：变化时重建 markdown 实例并重渲染
+let features = { math: true, mermaid: true };
+function createRenderer() {
+  const base = obsidianPlugins(buildRenderer());
+  return features.math ? mathPlugin(base) : base;
+}
+let md = createRenderer();
 
 let mode: ViewMode = "render";
 let currentText = "";
@@ -48,7 +56,7 @@ function renderDocument(text: string) {
   content.innerHTML = md.render(preserveIndent(text), env);
   injectTaskMarkers(content);
   rewriteLocalImages(content);
-  hydrateMermaid(content);
+  if (features.mermaid) hydrateMermaid(content);
   send({ type: "outlineChanged", items: extractOutline(content) });
 
   // frontmatter 展示
@@ -142,6 +150,7 @@ onHostMessage((msg) => {
         mode = "render";
         document.body.dataset.mode = "render";
       }
+      appEl.scrollTop = 0;
       renderDocument(msg.content);
       break;
     case "setMode": setMode(msg.mode); break;
@@ -151,14 +160,36 @@ onHostMessage((msg) => {
       setMermaidTheme(msg.theme);
       // 已渲染的 SVG 不会自动换色，主题真的变了就整篇重绘一次（保留滚动位置）
       if (changed && content.querySelector(".mermaid-diagram")) {
-        const appEl = document.querySelector<HTMLElement>("#app")!;
         const top = appEl.scrollTop;
         renderDocument(currentText);
         appEl.scrollTop = top;
       }
       break;
     }
-    case "setTypography": applyTypography(msg); break;
+    case "setTypography": {
+      const nextMath = msg.renderMath !== false;
+      const nextMermaid = msg.renderMermaid !== false;
+      const changed = nextMath !== features.math || nextMermaid !== features.mermaid;
+      features = { math: nextMath, mermaid: nextMermaid };
+      if (changed) {
+        md = createRenderer();
+        if (mode === "render") {
+          const top = appEl.scrollTop;
+          renderDocument(currentText);
+          appEl.scrollTop = top;
+        }
+      }
+      applyTypography(msg);
+      break;
+    }
+    case "setShortcuts": {
+      shortcutGestures = new Set(msg.shortcuts.map((s) => s.gesture));
+      const open = msg.shortcuts.find((s) => s.id === "open")?.gesture ?? "Ctrl+O";
+      const hint = document.querySelector<HTMLElement>("#empty-open-key");
+      if (hint) hint.textContent = open;
+      break;
+    }
+    case "restoreReadingPosition": restoreScroll(msg.ratio); break;
     case "setEmptyState": emptyBox.classList.toggle("hidden", !msg.visible); break;
     case "scrollToHeading": {
       const el = content.querySelector(`[data-line="${msg.line}"]`);
@@ -173,26 +204,89 @@ onHostMessage((msg) => {
         break;
       }
       if (editor?.visible) editor.find(msg.query, msg.direction);
-      else find(content, msg.query, msg.direction);
+      else find(content, msg.query, msg.direction, msg.wholeWord ?? false);
       break;
   }
 });
 
-// 快捷键：焦点在 WebView2 时 XAML KeyboardAccelerator 收不到事件，
-// 由内核在捕获阶段拦截 Ctrl+O/S/E/K/F/B 上报宿主分发
-const ACCELERATOR_KEYS = new Set(["o", "s", "e", "k", "f", "b"]);
+// 快捷键：Web 内核捕获后上报规范化组合键，宿主按同一份绑定表分发
+let shortcutGestures = new Set<string>();
+
+function keyToken(e: KeyboardEvent): string | null {
+  const key = e.key;
+  if (key.length === 1) {
+    if (/[a-zA-Z]/.test(key)) return key.toUpperCase();
+    if (/[0-9]/.test(key)) return key;
+    if (",./;'[]\\-=`".includes(key)) return key;
+    return null;
+  }
+  const named: Record<string, string> = {
+    Enter: "Enter",
+    " ": "Space",
+    Home: "Home",
+    End: "End",
+    PageUp: "PageUp",
+    PageDown: "PageDown",
+    ArrowLeft: "Left",
+    ArrowRight: "Right",
+    ArrowUp: "Up",
+    ArrowDown: "Down",
+    Insert: "Insert",
+    Delete: "Delete",
+    Backspace: "Backspace",
+  };
+  if (named[key]) return named[key];
+  if (/^F([1-9]|1[0-2])$/.test(key)) return key;
+  return null;
+}
+
+function gestureOf(e: KeyboardEvent): string | null {
+  if (!e.ctrlKey && !e.altKey && !e.shiftKey) return null;
+  const token = keyToken(e);
+  if (!token) return null;
+  const mods: string[] = [];
+  if (e.ctrlKey) mods.push("Ctrl");
+  if (e.altKey) mods.push("Alt");
+  if (e.shiftKey) mods.push("Shift");
+  return [...mods, token].join("+");
+}
+
 window.addEventListener(
   "keydown",
   (e) => {
-    if (!e.ctrlKey || e.altKey || e.metaKey) return;
-    const key = e.key.toLowerCase();
-    if (!ACCELERATOR_KEYS.has(key)) return;
+    if (e.isComposing || e.repeat) return;
+    const gesture = gestureOf(e);
+    if (!gesture || !shortcutGestures.has(gesture)) return;
     e.preventDefault();
     e.stopPropagation();
-    send({ type: "accelerator", key: key as AcceleratorKey });
+    send({ type: "accelerator", gesture });
   },
   { capture: true },
 );
+
+// 阅读位置：滚动比例去抖上报；打开文档后按宿主指令恢复
+let lastSentRatio = -1;
+let scrollTimer: number | undefined;
+appEl.addEventListener("scroll", () => {
+  if (scrollTimer !== undefined) return;
+  scrollTimer = window.setTimeout(() => {
+    scrollTimer = undefined;
+    const max = appEl.scrollHeight - appEl.clientHeight;
+    if (max <= 0) return;
+    const ratio = Math.min(1, Math.max(0, appEl.scrollTop / max));
+    if (Math.abs(ratio - lastSentRatio) < 0.002) return;
+    lastSentRatio = ratio;
+    send({ type: "readingPosition", ratio });
+  }, 400);
+});
+
+function restoreScroll(ratio: number) {
+  requestAnimationFrame(() => {
+    const max = appEl.scrollHeight - appEl.clientHeight;
+    appEl.scrollTop = max > 0 ? Math.min(1, Math.max(0, ratio)) * max : 0;
+    lastSentRatio = ratio;
+  });
+}
 
 // 诊断：图片加载失败 / JS 异常上报宿主进日志
 window.addEventListener(

@@ -8,7 +8,9 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
+using Windows.Storage;
 using Windows.System;
 
 namespace Maber.App;
@@ -27,6 +29,10 @@ public sealed partial class MainWindow : Window
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
     private static readonly Regex TaskMarker = new(@"\[( |x|X)\]");
 
+    private readonly ReadingStateStore _readingStore = new();
+    private readonly Dictionary<string, ReadingMark> _readingMarks;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _readingSaveTimer;
+
     // Web 端 onHostMessage 监听器注册后才会处理消息；就绪前发的 loadDocument 会丢，
     // 因此用 ready/NavigationCompleted 双信号握手，等待后再发首条文档。
     private readonly TaskCompletionSource _webReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -41,6 +47,7 @@ public sealed partial class MainWindow : Window
         _totalMode = totalMode;
         Perf($"window:ctor {(initialPath is null ? "main" : $"wikilink {Path.GetFileName(initialPath)}")} total={totalMode}");
         InitializeComponent();
+        _readingMarks = _readingStore.Load();
         _currentSidebarTab = TabOutline;
         TabStrip.Loaded += (_, _) => MoveTabUnderline(TabOutline, false);
         TabStrip.SizeChanged += (_, _) => MoveTabUnderline(_currentSidebarTab ?? TabOutline, false);
@@ -54,21 +61,28 @@ public sealed partial class MainWindow : Window
         UpdateDateLabel();
         if (_totalMode)
         {
+            var width = SettingsHost.Current.SidebarWidth;
+            _sidebarOpen = SettingsHost.Current.SidebarOpenByDefault;
             SidebarToggle.Visibility = Visibility.Visible;
-            Sidebar.Visibility = Visibility.Visible;
-            SidebarSpace.Visibility = Visibility.Visible;
-            SidebarSpace.Width = 240;
+            Sidebar.Width = width;
+            SidebarSpace.Width = width;
+            if (_sidebarOpen)
+            {
+                Sidebar.Visibility = Visibility.Visible;
+                SidebarSpace.Visibility = Visibility.Visible;
+            }
         }
 
-        // 所有窗口都关掉后退出进程，避免无窗口的后台残留
-        Interlocked.Increment(ref LiveWindows);
         Closed += (_, _) =>
         {
             SettingsHost.Changed -= OnSettingsChanged;
             _watcher.Dispose();
-            if (Interlocked.Decrement(ref LiveWindows) == 0) Environment.Exit(0);
+            SaveWindowBounds();
+            SaveReadingMarks();
         };
         SettingsHost.Changed += OnSettingsChanged;
+        App.TrackWindow(this); // 必须在清理/落盘之后注册，保证最后一个窗口退出前完成保存
+        SetupDragDrop();
 
         Web.WebMessageReceived += OnWebMessage;
         Web.NavigationCompleted += (_, e) =>
@@ -85,6 +99,7 @@ public sealed partial class MainWindow : Window
             Perf("web:navigation-completed");
             SendTheme();
             SendTypography();
+            SendShortcuts();
         };
         // 关闭查找框时清掉页内高亮
         FindPopup.Closed += (_, _) =>
@@ -104,17 +119,18 @@ public sealed partial class MainWindow : Window
         // XAML 侧快捷键只在焦点落在 XAML 元素（如查找框）时生效；
         // 焦点在 WebView2 内时由内核捕获按键后经 "accelerator" 消息分发到同一张表
         Root.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden; // 关掉悬停弹 "Ctrl+O" tooltip
-        _accelerators = new Dictionary<string, Action>
+        _commandActions = new Dictionary<string, Action>(StringComparer.OrdinalIgnoreCase)
         {
-            ["o"] = () => _ = PickOpenFileAsync(),
-            ["s"] = () => _ = SaveAsync(),
-            ["e"] = ToggleMode,
-            ["k"] = ShowOutline,
-            ["f"] = ShowFind,
-            ["b"] = ToggleSidebar,
+            [ShortcutCommands.Open] = () => _ = PickOpenFileAsync(),
+            [ShortcutCommands.Save] = () => _ = SaveAsync(),
+            [ShortcutCommands.ToggleMode] = ToggleMode,
+            [ShortcutCommands.Outline] = ShowOutline,
+            [ShortcutCommands.Find] = ShowFind,
+            [ShortcutCommands.Sidebar] = ToggleSidebar,
+            [ShortcutCommands.QuickOpen] = ShowQuickOpen,
+            [ShortcutCommands.Settings] = SettingsWindow.Open,
         };
-        foreach (var (key, action) in _accelerators)
-            AddAccelerator((VirtualKey)char.ToUpper(key[0]), action);
+        RebuildAccelerators();
 
         var path = initialPath ?? Environment.GetCommandLineArgs().Skip(1).FirstOrDefault(p => File.Exists(p));
         // 窗口首次激活（可见）后再初始化 WebView2：不可见时创建控制器是已知慢路径（可达数秒）
@@ -128,7 +144,6 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private static int LiveWindows;
     private bool _initStarted;
 
     // ---------- 性能日志（Debug 构建默认开；Release 需设 MABER_PERF=1）----------
@@ -159,6 +174,26 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            // 完整模式优先恢复上次关闭时的窗口位置（仍需与当前显示器有交集）
+            if (_totalMode && SettingsHost.Current.RememberWindowBounds &&
+                SettingsHost.Current.Window is { } saved)
+            {
+                var area = Microsoft.UI.Windowing.DisplayArea.GetFromPoint(
+                    new Windows.Graphics.PointInt32(saved.X + 40, saved.Y + 40),
+                    Microsoft.UI.Windowing.DisplayAreaFallback.Primary).WorkArea;
+                var intersects = saved.X < area.X + area.Width && saved.X + saved.Width > area.X
+                             && saved.Y < area.Y + area.Height && saved.Y + saved.Height > area.Y;
+                if (intersects)
+                {
+                    AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
+                        saved.X, saved.Y, saved.Width, saved.Height));
+                    if (saved.Maximized && AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+                        presenter.Maximize();
+                    Perf($"window:restored {saved.Width}x{saved.Height} at {saved.X},{saved.Y} max={saved.Maximized}");
+                    return;
+                }
+            }
+
             var scale = Root.XamlRoot?.RasterizationScale ?? 1.0;
             if (scale < 1) scale = 1;
             var work = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
@@ -172,8 +207,8 @@ public sealed partial class MainWindow : Window
             {
                 const double ratio = 5.0 / 4.0;              // 高/宽
                 wLogical = Math.Min(720.0, work.Width / scale);
-                hLogical = Math.Min(wLogical * ratio, work.Height / scale);
-                wLogical = hLogical / ratio;                  // 高度被夹矮时收宽度，保住 4:5
+                wLogical = Math.Min(wLogical, work.Height / scale / ratio);
+                hLogical = wLogical * ratio;
             }
             var w = (int)(wLogical * scale);
             var h = (int)(hLogical * scale);
@@ -183,14 +218,108 @@ public sealed partial class MainWindow : Window
         catch { /* 尺寸设置失败不影响功能 */ }
     }
 
-    private Dictionary<string, Action> _accelerators = new();
-
-    private void AddAccelerator(VirtualKey key, Action action)
+    /// <summary>关闭时记住窗口位置；最大化时保留上次的还原尺寸</summary>
+    private void SaveWindowBounds()
     {
-        var acc = new KeyboardAccelerator { Modifiers = VirtualKeyModifiers.Control, Key = key };
-        acc.Invoked += (_, args) => { args.Handled = true; action(); };
-        // 挂在根 Grid 上，XAML 焦点范围内任意位置均可触发
-        ((Grid)Content).KeyboardAccelerators.Add(acc);
+        if (!_totalMode || !SettingsHost.Current.RememberWindowBounds) return;
+        try
+        {
+            var maximized = AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter
+                { State: Microsoft.UI.Windowing.OverlappedPresenterState.Maximized };
+            var bounds = maximized && SettingsHost.Current.Window is { } previous
+                ? previous with { Maximized = true }
+                : new WindowBounds(
+                    AppWindow.Position.X, AppWindow.Position.Y,
+                    AppWindow.Size.Width, AppWindow.Size.Height, maximized);
+            SettingsHost.Update(x => x with { Window = bounds });
+            SettingsHost.Persist();
+        }
+        catch { /* 位置记忆失败不影响关闭 */ }
+    }
+
+    /// <summary>滚动位置是高频状态，去抖后落盘</summary>
+    private void DebounceReadingSave()
+    {
+        if (_readingSaveTimer is null)
+        {
+            _readingSaveTimer = DispatcherQueue.CreateTimer();
+            _readingSaveTimer.Interval = TimeSpan.FromMilliseconds(600);
+            _readingSaveTimer.IsRepeating = false;
+            _readingSaveTimer.Tick += (_, _) => SaveReadingMarks();
+        }
+        _readingSaveTimer.Stop();
+        _readingSaveTimer.Start();
+    }
+
+    private void SaveReadingMarks() => _readingStore.Save(_readingMarks);
+
+    private Dictionary<string, Action> _commandActions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<KeyboardAccelerator> _activeAccelerators = new();
+
+    /// <summary>按当前设置重建 XAML 快捷键；改动快捷键后立即调用</summary>
+    private void RebuildAccelerators()
+    {
+        if (Content is not Grid root) return;
+        foreach (var accelerator in _activeAccelerators)
+            root.KeyboardAccelerators.Remove(accelerator);
+        _activeAccelerators.Clear();
+
+        foreach (var (id, gesture) in ShortcutCommands.ResolveAll(SettingsHost.Current.Shortcuts))
+        {
+            if (!_commandActions.TryGetValue(id, out var action)) continue;
+            var (ctrl, alt, shift, keyName) = ShortcutGesture.Parse(gesture);
+            var key = ParseVirtualKey(keyName);
+            if (key is null) continue;
+
+            var modifiers = VirtualKeyModifiers.None;
+            if (ctrl) modifiers |= VirtualKeyModifiers.Control;
+            if (alt) modifiers |= VirtualKeyModifiers.Menu;
+            if (shift) modifiers |= VirtualKeyModifiers.Shift;
+            if (modifiers == VirtualKeyModifiers.None) continue;
+
+            var accelerator = new KeyboardAccelerator { Modifiers = modifiers, Key = key.Value };
+            accelerator.Invoked += (_, args) => { args.Handled = true; action(); };
+            root.KeyboardAccelerators.Add(accelerator);
+            _activeAccelerators.Add(accelerator);
+        }
+    }
+
+    private static VirtualKey? ParseVirtualKey(string name)
+    {
+        if (name.Length == 1)
+        {
+            var c = name[0];
+            if (char.IsAsciiLetter(c)) return (VirtualKey)('A' + char.ToUpperInvariant(c) - 'A');
+            if (char.IsAsciiDigit(c)) return (VirtualKey)('0' + (c - '0'));
+            return (int)c switch
+            {
+                186 => (VirtualKey)186, 187 => (VirtualKey)187, 188 => (VirtualKey)188,
+                189 => (VirtualKey)189, 190 => (VirtualKey)190, 191 => (VirtualKey)191,
+                192 => (VirtualKey)192, 219 => (VirtualKey)219, 220 => (VirtualKey)220,
+                221 => (VirtualKey)221, 222 => (VirtualKey)222,
+                _ => null,
+            };
+        }
+
+        return name switch
+        {
+            "Enter" => VirtualKey.Enter,
+            "Space" => VirtualKey.Space,
+            "Home" => VirtualKey.Home,
+            "End" => VirtualKey.End,
+            "PageUp" => VirtualKey.PageUp,
+            "PageDown" => VirtualKey.PageDown,
+            "Left" => VirtualKey.Left,
+            "Right" => VirtualKey.Right,
+            "Up" => VirtualKey.Up,
+            "Down" => VirtualKey.Down,
+            "Insert" => VirtualKey.Insert,
+            "Delete" => VirtualKey.Delete,
+            "Backspace" => VirtualKey.Back,
+            _ when name.StartsWith('F') && int.TryParse(name[1..], out var fn) && fn is >= 1 and <= 12
+                => (VirtualKey)((int)VirtualKey.F1 + fn - 1),
+            _ => null,
+        };
     }
 
     private async Task InitializeAsync(string? path)
@@ -214,6 +343,11 @@ public sealed partial class MainWindow : Window
         Perf("init:controller-ready");
         Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
             "app.localhost", Path.Combine(AppContext.BaseDirectory, "wwwroot"),
+            Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+        // 本地导入字体：独立域映射到应用数据目录，供 CSS @font-face 读取
+        FontService.EnsureDirectory();
+        Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
+            FontService.Host, MaberPaths.FontsDirectory,
             Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
         Perf("init:mapped");
         // 文档内相对资源（图片等）：WebResourceRequested 自伺服。
@@ -267,6 +401,9 @@ public sealed partial class MainWindow : Window
         // 文档内相对资源的伺服根目录（WebResourceRequested 处理器读取）
         _contentDir = Path.GetDirectoryName(Path.GetFullPath(path));
         PostDocument();
+        if (SettingsHost.Current.RestoreReadingPosition &&
+            _readingMarks.TryGetValue(_doc.Value.Path, out var mark) && mark.Ratio > 0.001)
+            Post(new { type = BridgeMessages.RestoreReadingPosition, ratio = mark.Ratio });
     }
 
     /// <summary>统一的文档下发：所有路径都带 contentBase，并把两侧模式状态拉回阅读态</summary>
@@ -430,14 +567,17 @@ public sealed partial class MainWindow : Window
             // 竞态兜底：读最新内容；与我们手里的权威文本一致则是自写回声
             var fresh = await _files.LoadAsync(_doc.Value.Path);
             if (fresh.Text == _currentText) return;
-            if (!_dirty)
+            var promptMode = SettingsHost.Current.ExternalChangeMode == "prompt";
+            if (!_dirty && !promptMode)
             {
                 _doc = fresh; _currentText = fresh.Text;
                 PostDocument();
             }
             else
             {
-                ShowBar("文件已被外部修改，你有未保存的更改");
+                ShowBar(_dirty
+                    ? "文件已被外部修改，你有未保存的更改"
+                    : "文件已被外部修改，点击加载最新内容");
             }
         }
         catch (Exception ex)
@@ -487,10 +627,14 @@ public sealed partial class MainWindow : Window
                     _webReady.TrySetResult();
                     SendTheme();
                     SendTypography();
+                    SendShortcuts();
                     if (_totalMode && _doc is null) SendEmptyState(true); // Slim 等文档加载，避免水印闪一下
                     break;
                 case BridgeMessages.Accelerator:
-                    if (_accelerators.TryGetValue(json.RootElement.GetProperty("key").GetString() ?? "", out var action))
+                    var gesture = json.RootElement.GetProperty("gesture").GetString() ?? "";
+                    var commandId = ShortcutCommands.ResolveAll(SettingsHost.Current.Shortcuts)
+                        .FirstOrDefault(kv => kv.Value == gesture).Key;
+                    if (commandId is not null && _commandActions.TryGetValue(commandId, out var action))
                         action();
                     break;
                 case BridgeMessages.CheckboxToggled:
@@ -500,6 +644,15 @@ public sealed partial class MainWindow : Window
                 case BridgeMessages.ContentChanged:
                     _currentText = json.RootElement.GetProperty("content").GetString() ?? _currentText;
                     _dirty = true;
+                    break;
+                case BridgeMessages.ReadingPosition:
+                    if (_doc is not null)
+                    {
+                        _readingMarks[_doc.Value.Path] = new ReadingMark(
+                            json.RootElement.GetProperty("ratio").GetDouble(),
+                            DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                        DebounceReadingSave();
+                    }
                     break;
                 case BridgeMessages.OutlineChanged:
                     _outline = json.RootElement.GetProperty("items").EnumerateArray()
@@ -617,10 +770,22 @@ public sealed partial class MainWindow : Window
     private void OnSettingsChanged(object? s, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
     {
         ApplyChromeTheme();
+        ApplyLayoutSettings();
+        RebuildAccelerators();
         SendTheme();
         SendTypography();
+        SendShortcuts();
         RefreshRecentList();
     });
+
+    /// <summary>侧栏宽度等需要立刻反映到布局的设置</summary>
+    private void ApplyLayoutSettings()
+    {
+        if (!_totalMode) return;
+        var width = SettingsHost.Current.SidebarWidth;
+        Sidebar.Width = width;
+        SidebarSpace.Width = width;
+    }
 
     private void SendTheme()
     {
@@ -636,9 +801,31 @@ public sealed partial class MainWindow : Window
         {
             type = BridgeMessages.SetTypography,
             fontFamily = s.FontFamily,
+            customFontFamily = s.CustomFontFamily,
             fontSize = s.FontSize,
             lineHeight = s.LineHeight,
             contentWidth = s.ContentWidth,
+            codeFontFamily = s.CodeFontFamily,
+            codeFontSize = s.CodeFontSize,
+            renderMath = s.RenderMath,
+            renderMermaid = s.RenderMermaid,
+            fontFaces = s.CustomFonts.Select(f => new
+            {
+                family = f.Family,
+                url = FontService.UrlFor(f),
+            }),
+        });
+    }
+
+    /// <summary>把当前组合键下发给 Web 内核，用于匹配后上报 accelerator</summary>
+    private void SendShortcuts()
+    {
+        if (!_ready) return;
+        var resolved = ShortcutCommands.ResolveAll(SettingsHost.Current.Shortcuts);
+        Post(new
+        {
+            type = BridgeMessages.SetShortcuts,
+            shortcuts = resolved.Select(kv => new { id = kv.Key, gesture = kv.Value }),
         });
     }
 
@@ -648,148 +835,50 @@ public sealed partial class MainWindow : Window
         Post(new { type = BridgeMessages.SetEmptyState, visible });
     }
 
-    private bool _suppressSettingsEvents;
-    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _saveTimer;
+    private void OnOpenSettings(object s, RoutedEventArgs e) => SettingsWindow.Open();
 
-    private async void OnOpenSettings(object s, RoutedEventArgs e) => await ShowSettingsAsync();
-
-    /// <summary>Total Mode 的完整设置：主题 + 排版，改动即时广播到所有窗口</summary>
-    private async Task ShowSettingsAsync()
+    // ---------- 拖放 ----------
+    /// <summary>把 md / markdown / txt 拖进窗口直接打开</summary>
+    private void SetupDragDrop()
     {
-        if (!_totalMode) return;
-
-        var themeBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        themeBox.Items.Add(new ComboBoxItem { Content = "跟随系统", Tag = "system" });
-        themeBox.Items.Add(new ComboBoxItem { Content = "浅色", Tag = "light" });
-        themeBox.Items.Add(new ComboBoxItem { Content = "深色", Tag = "dark" });
-
-        var fontBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        fontBox.Items.Add(new ComboBoxItem { Content = "系统默认", Tag = "default" });
-        fontBox.Items.Add(new ComboBoxItem { Content = "微软雅黑", Tag = "yahei" });
-        fontBox.Items.Add(new ComboBoxItem { Content = "霞鹜文楷（屏幕阅读）", Tag = "wenkai" });
-        fontBox.Items.Add(new ComboBoxItem { Content = "得意黑", Tag = "smiley" });
-        fontBox.Items.Add(new ComboBoxItem { Content = "宋体", Tag = "simsun" });
-        fontBox.Items.Add(new ComboBoxItem { Content = "楷体", Tag = "kaiti" });
-        fontBox.Items.Add(new ComboBoxItem { Content = "等宽（Cascadia / Consolas）", Tag = "mono" });
-
-        var sizeSlider = new Slider { Minimum = 12, Maximum = 24, StepFrequency = 1 };
-        var sizeValue = new TextBlock { FontSize = 12, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center };
-        var lhSlider = new Slider { Minimum = 1.4, Maximum = 2.2, StepFrequency = 0.05 };
-        var lhValue = new TextBlock { FontSize = 12, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center };
-        var widthSlider = new Slider { Minimum = 30, Maximum = 70, StepFrequency = 1 };
-        var widthValue = new TextBlock { FontSize = 12, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center };
-
-        void SyncFromSettings()
+        Root.AllowDrop = true;
+        Root.DragOver += (_, e) =>
         {
-            _suppressSettingsEvents = true;
-            var s = SettingsHost.Current;
-            themeBox.SelectedIndex = s.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
-            fontBox.SelectedIndex = s.FontFamily switch
+            if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = "打开";
+            e.DragUIOverride.IsCaptionVisible = true;
+            e.DragUIOverride.IsGlyphVisible = true;
+        };
+        Root.Drop += async (_, e) =>
+        {
+            if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+            var deferral = e.GetDeferral();
+            try
             {
-                "yahei" => 1, "wenkai" => 2, "smiley" => 3,
-                "simsun" => 4, "kaiti" => 5, "mono" => 6, _ => 0,
-            };
-            sizeSlider.Value = s.FontSize;
-            sizeValue.Text = $"{s.FontSize:0} px";
-            lhSlider.Value = s.LineHeight;
-            lhValue.Text = $"{s.LineHeight:0.00}";
-            widthSlider.Value = s.ContentWidth;
-            widthValue.Text = $"{s.ContentWidth:0} rem";
-            _suppressSettingsEvents = false;
-        }
-
-        void Commit(Func<AppSettings, AppSettings> change)
-        {
-            if (_suppressSettingsEvents) return;
-            SettingsHost.Update(change);
-            DebounceSave();
-        }
-
-        themeBox.SelectionChanged += (_, _) => Commit(s =>
-            s with { Theme = (themeBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "system" });
-        fontBox.SelectionChanged += (_, _) => Commit(s =>
-            s with { FontFamily = (fontBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "default" });
-        sizeSlider.ValueChanged += (_, e) =>
-        {
-            var v = Math.Round(e.NewValue);
-            sizeValue.Text = $"{v:0} px";
-            Commit(s => s with { FontSize = v });
+                var items = await e.DataView.GetStorageItemsAsync();
+                var file = items.OfType<StorageFile>().FirstOrDefault(f =>
+                {
+                    var ext = Path.GetExtension(f.Path);
+                    return ext.Equals(".md", StringComparison.OrdinalIgnoreCase)
+                        || ext.Equals(".markdown", StringComparison.OrdinalIgnoreCase)
+                        || ext.Equals(".txt", StringComparison.OrdinalIgnoreCase);
+                });
+                if (file is null) { ShowBar("只支持拖入 .md / .markdown / .txt 文件"); return; }
+                if (!await ConfirmDiscardAsync()) return;
+                await LoadFileAsync(file.Path);
+            }
+            catch (Exception ex)
+            {
+                Perf($"drop:error {ex.GetType().Name} {ex.Message}");
+                ShowBar("打开拖入的文件失败");
+            }
+            finally
+            {
+                deferral.Complete();
+            }
         };
-        lhSlider.ValueChanged += (_, e) =>
-        {
-            var v = Math.Round(e.NewValue, 2);
-            lhValue.Text = $"{v:0.00}";
-            Commit(s => s with { LineHeight = v });
-        };
-        widthSlider.ValueChanged += (_, e) =>
-        {
-            var v = Math.Round(e.NewValue);
-            widthValue.Text = $"{v:0} rem";
-            Commit(s => s with { ContentWidth = v });
-        };
-
-        SyncFromSettings();
-
-        var panel = new StackPanel { Spacing = 18, MinWidth = 360 };
-        panel.Children.Add(LabeledRow("主题", themeBox));
-        panel.Children.Add(LabeledRow("字体", fontBox));
-        panel.Children.Add(SliderRow("字号", sizeSlider, sizeValue));
-        panel.Children.Add(SliderRow("行高", lhSlider, lhValue));
-        panel.Children.Add(SliderRow("阅读宽度", widthSlider, widthValue));
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = Content.XamlRoot,
-            RequestedTheme = CurrentElementTheme,
-            Title = "设置",
-            Content = new ScrollViewer { Content = panel, MaxHeight = 520 },
-            PrimaryButtonText = "完成",
-            SecondaryButtonText = "恢复默认",
-            DefaultButton = ContentDialogButton.Primary,
-        };
-        dialog.SecondaryButtonClick += (_, args) =>
-        {
-            args.Cancel = true; // 恢复默认后留在对话框，方便继续调整
-            SettingsHost.Update(_ => new AppSettings());
-            SettingsHost.Persist();
-            SyncFromSettings();
-        };
-        await dialog.ShowAsync();
-        SettingsHost.Persist(); // 去抖可能还没触发，关闭时兜底落盘
     }
-
-    private static StackPanel LabeledRow(string label, FrameworkElement control)
-    {
-        var row = new StackPanel { Spacing = 5 };
-        row.Children.Add(new TextBlock { Text = label, FontSize = 12, Opacity = 0.7 });
-        row.Children.Add(control);
-        return row;
-    }
-
-    private static StackPanel SliderRow(string label, Slider slider, TextBlock value)
-    {
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        head.Children.Add(new TextBlock { Text = label, FontSize = 12, Opacity = 0.7 });
-        head.Children.Add(value);
-        var row = new StackPanel { Spacing = 3 };
-        row.Children.Add(head);
-        row.Children.Add(slider);
-        return row;
-    }
-
-    private void DebounceSave()
-    {
-        if (_saveTimer is null)
-        {
-            _saveTimer = DispatcherQueue.CreateTimer();
-            _saveTimer.Interval = TimeSpan.FromMilliseconds(300);
-            _saveTimer.IsRepeating = false;
-            _saveTimer.Tick += (_, _) => SettingsHost.Persist();
-        }
-        _saveTimer.Stop();
-        _saveTimer.Start();
-    }
-
     // ---------- 侧栏 ----------
     /// <summary>底栏日期：11月8日 | 星期日</summary>
     private void UpdateDateLabel()
@@ -859,7 +948,7 @@ public sealed partial class MainWindow : Window
                 Sidebar.Visibility = Visibility.Collapsed;
                 SidebarTransform.X = 0;
                 SidebarSpace.Visibility = Visibility.Collapsed;
-                SidebarSpace.Width = 240;
+                SidebarSpace.Width = Sidebar.Width;
             }
         };
         _sidebarStory = story;
@@ -899,7 +988,7 @@ public sealed partial class MainWindow : Window
             Sidebar.Visibility = Visibility.Visible;
             SidebarTransform.X = 0;
             SidebarSpace.Visibility = Visibility.Visible;
-            SidebarSpace.Width = 240;
+            SidebarSpace.Width = Sidebar.Width;
             SelectSidebarTab(TabOutline);
             RefreshSidebarOutline();
             return;
@@ -1058,7 +1147,7 @@ public sealed partial class MainWindow : Window
     private void ShowFind()
     {
         if (!_ready || _doc is null) return;
-        FindPopup.HorizontalOffset = Math.Max(0, Root.ActualWidth - 340);
+        FindPopup.HorizontalOffset = Math.Max(0, Root.ActualWidth - 470);
         FindPopup.VerticalOffset = 44;
         FindPopup.IsOpen = true;
         FindBox.Focus(FocusState.Programmatic);
@@ -1071,7 +1160,7 @@ public sealed partial class MainWindow : Window
         {
             var shiftDown = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift)
                 .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-            Post(new { type = BridgeMessages.Find, query = FindBox.Text, direction = shiftDown ? -1 : 1 });
+            SendFind(shiftDown ? -1 : 1);
             e.Handled = true;
         }
         else if (e.Key == VirtualKey.Escape)
@@ -1081,6 +1170,46 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void OnFindNext(object s, RoutedEventArgs e)
-        => Post(new { type = BridgeMessages.Find, query = FindBox.Text, direction = 1 });
+    private void OnFindNext(object s, RoutedEventArgs e) => SendFind(1);
+
+    private void OnFindModeChanged(object sender, RoutedEventArgs e) => SendFind(1);
+
+    private void SendFind(int direction)
+    {
+        var query = FindBox.Text;
+        Post(new
+        {
+            type = BridgeMessages.Find,
+            query,
+            direction,
+            wholeWord = FindWholeWord.IsChecked == true,
+        });
+        if (query.Length == 0) return;
+        SettingsHost.Update(s => s with
+        {
+            FindHistory = new[] { query }
+                .Concat(s.FindHistory)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(10)
+                .ToList(),
+        });
+        SettingsHost.Persist();
+    }
+
+    private void OnFindHistoryOpening(object? sender, object e)
+    {
+        FindHistoryFlyout.Items.Clear();
+        foreach (var query in SettingsHost.Current.FindHistory)
+        {
+            var item = new MenuFlyoutItem { Text = query };
+            item.Click += (_, _) =>
+            {
+                FindBox.Text = query;
+                SendFind(1);
+            };
+            FindHistoryFlyout.Items.Add(item);
+        }
+        if (FindHistoryFlyout.Items.Count == 0)
+            FindHistoryFlyout.Items.Add(new MenuFlyoutItem { Text = "暂无搜索历史", IsEnabled = false });
+    }
 }

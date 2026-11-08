@@ -5,6 +5,8 @@
   --font-size: 16px;
   --line-height: 1.75;
   --content-width: 46rem;
+  --code-font-family: "Cascadia Code", Consolas, "Microsoft YaHei", monospace;
+  --code-font-size: 13px;
 }
 
 * { box-sizing: border-box; }
@@ -48,7 +50,7 @@ html, body { margin: 0; height: 100%; }
 }
 #content code {
   background: var(--code-bg); padding: .15em .4em; border-radius: 4px;
-  font: .9em "Cascadia Code", Consolas, monospace;
+  font-family: var(--code-font-family); font-size: var(--code-font-size);
 }
 #content pre {
   background: var(--code-bg); padding: 1em 1.2em; border-radius: 6px;
