@@ -106,20 +106,24 @@ mark.find-hit.current { outline: 2px solid var(--accent); }
   align-items: center; justify-content: center;
   gap: .7rem;
   color: var(--fg-soft);
-  opacity: .55;
   pointer-events: none;
   user-select: none;
 }
 #empty.hidden { display: none; }
+#empty .empty-logo {
+  width: 56px; height: 56px;
+  color: var(--fg); opacity: .6;
+  margin-bottom: .2rem;
+}
 #empty .empty-mark {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 2.7rem; font-weight: 600;
   letter-spacing: .22em; text-indent: .22em;
-  margin-bottom: .15rem;
+  opacity: .65;
 }
 #empty .empty-mark .dot { color: var(--accent); }
-#empty .empty-hint { font-size: 1rem; }
-#empty .empty-sub { font-size: .82rem; opacity: .8; }
+#empty .empty-hint { font-size: 1rem; opacity: .65; }
+#empty .empty-sub { font-size: .82rem; opacity: .45; }
 #empty kbd {
   font: .85em "Cascadia Code", Consolas, monospace;
   padding: .1em .4em; border: 1px solid var(--border);

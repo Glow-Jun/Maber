@@ -7,7 +7,6 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.System;
 
 namespace Maber.App;
@@ -41,7 +40,8 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         ApplyAppIcon();
-        ModeBadge.Text = "阅读";
+        TitleText.Text = "Maber";
+        ModeBadge.Text = "";
         ApplyChromeTheme();
         UpdateDateLabel();
         if (_totalMode)
@@ -536,7 +536,6 @@ public sealed partial class MainWindow : Window
     {
         if (Content is FrameworkElement root) root.RequestedTheme = CurrentElementTheme;
         ApplyCaptionButtonTheme();
-        UpdateAppMark();
     }
 
     /// <summary>根元素与 ContentDialog 都按这个主题渲染（弹层不继承根元素 RequestedTheme）</summary>
@@ -603,18 +602,6 @@ public sealed partial class MainWindow : Window
             if (File.Exists(ico)) AppWindow.SetIcon(ico);
         }
         catch { /* 图标缺失不影响功能 */ }
-    }
-
-    /// <summary>标题栏 monogram：浅色主题用墨色，深色主题用浅墨色</summary>
-    private void UpdateAppMark()
-    {
-        try
-        {
-            var name = SettingsHost.ResolveTheme() == "light" ? "MaberMarkLight.png" : "MaberMarkDark.png";
-            var path = Path.Combine(AppContext.BaseDirectory, "Assets", name);
-            AppMark.Source = File.Exists(path) ? new BitmapImage(new Uri(path)) : null;
-        }
-        catch { AppMark.Source = null; }
     }
 
     private void OnSettingsChanged(object? s, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
@@ -794,12 +781,12 @@ public sealed partial class MainWindow : Window
     }
 
     // ---------- 侧栏 ----------
-    /// <summary>底栏日期：11月8日 | 周六</summary>
+    /// <summary>底栏日期：11月8日 | 星期日</summary>
     private void UpdateDateLabel()
     {
         var now = DateTime.Now;
         var week = "日一二三四五六"[(int)now.DayOfWeek];
-        DateText.Text = $"{now.Month}月{now.Day}日 | 周{week}";
+        DateText.Text = $"{now.Month}月{now.Day}日 | 星期{week}";
     }
 
     private void OnToggleSidebar(object s, RoutedEventArgs e) => ToggleSidebar();
