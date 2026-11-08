@@ -2,9 +2,9 @@
 
 类 Typora 的极简 Markdown 阅读器，为 Obsidian 笔记库优化。WinUI 3 原生壳 + WebView2 渲染内核，原生窗口的轻量与 Web 排版生态兼得。
 
-v0.3.0「Refresh」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
+v0.3.1「Refresh」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
 
-![status](https://img.shields.io/badge/version-v0.3.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
+![status](https://img.shields.io/badge/version-v0.3.1-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
 
 ## 特性
 
@@ -79,7 +79,7 @@ dotnet run --project src/Maber.App
 
 设置与最近文件存放于 `%LOCALAPPDATA%\Maber\settings.json`。
 
-## 当前限制（v0.3.0）
+## 当前限制（v0.3.1）
 
 - 无 vault / 工作区概念，wikilink 按当前文件位置逐级向上解析
 - 源码模式为纯编辑器，非所见即所得
