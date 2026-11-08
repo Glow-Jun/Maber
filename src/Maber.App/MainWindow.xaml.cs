@@ -863,6 +863,20 @@ public sealed partial class MainWindow : Window
         if (tab == TabRecent) RefreshRecentList();
     }
 
+    private void OnTabPointerEntered(object sender, PointerRoutedEventArgs e)
+        => SetTabHover(sender, 1);
+
+    private void OnTabPointerExited(object sender, PointerRoutedEventArgs e)
+        => SetTabHover(sender, 0);
+
+    /// <summary>悬停底色由指针事件显式开关，移开必然复位</summary>
+    private void SetTabHover(object sender, double opacity)
+    {
+        if (ReferenceEquals(sender, TabOutline)) TabOutlineHover.Opacity = opacity;
+        else if (ReferenceEquals(sender, TabRecent)) TabRecentHover.Opacity = opacity;
+        else if (ReferenceEquals(sender, TabCheat)) TabCheatHover.Opacity = opacity;
+    }
+
     private void SelectSidebarTab(ToggleButton tab)
     {
         TabOutline.IsChecked = ReferenceEquals(tab, TabOutline);
