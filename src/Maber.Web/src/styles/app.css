@@ -111,10 +111,12 @@ mark.find-hit.current { outline: 2px solid var(--accent); }
 }
 #empty.hidden { display: none; }
 #empty .empty-logo {
-  width: 56px; height: 56px;
-  color: var(--fg); opacity: .6;
+  width: 84px; height: 84px;
+  color: var(--fg);
   margin-bottom: .2rem;
 }
+#empty .empty-logo .mark { opacity: .38; }
+#empty .empty-logo .crease { opacity: .6; }
 #empty .empty-mark {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 2.7rem; font-weight: 600;

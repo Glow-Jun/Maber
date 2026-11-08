@@ -76,22 +76,148 @@
                 </Style>
               </ListView.ItemContainerStyle>
             </ListView>
-            <ScrollViewer x:Name="CheatScroll" Visibility="Collapsed" Padding="12,4,12,12" FontSize="12"
+            <ScrollViewer x:Name="CheatScroll" Visibility="Collapsed" Padding="12,2,12,14"
                           VerticalScrollBarVisibility="Auto">
-              <StackPanel x:Name="CheatPanel" Spacing="7">
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"># 标题</Run><Run>  H1–H6</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">**粗体**</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">*斜体*</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">~~删除线~~</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">==高亮==</Run><Run>  段内换行即换行</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">- 列表</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">1. 序号</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">- [ ] 任务</Run><Run>  点击方框即写回</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">&gt; 引用</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">&gt; [!note] callout</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">`行内代码`</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">```代码块```</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">| 表格 |</Run><Run>  支持表头与对齐</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">[[wikilink]]</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">[[笔记|别名]]</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">![[图片.png]]</Run><Run>  嵌入图片</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">#标签</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">%%注释%%</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">$公式$</Run><Run>  </Run><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">$$公式$$</Run></TextBlock>
-                <TextBlock TextWrapping="Wrap"><Run FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}">```mermaid</Run><Run>  流程图 / 时序图</Run></TextBlock>
+              <ScrollViewer.Resources>
+                <Style x:Key="CheatGroupStyle" TargetType="TextBlock">
+                  <Setter Property="FontSize" Value="10.5"/>
+                  <Setter Property="FontWeight" Value="SemiBold"/>
+                  <Setter Property="Foreground" Value="{ThemeResource MaberTertiaryTextBrush}"/>
+                  <Setter Property="CharacterSpacing" Value="80"/>
+                  <Setter Property="Margin" Value="2,12,0,4"/>
+                </Style>
+                <Style x:Key="CheatSyntaxStyle" TargetType="TextBlock">
+                  <Setter Property="FontFamily" Value="Cascadia Code"/>
+                  <Setter Property="FontSize" Value="11"/>
+                  <Setter Property="Foreground" Value="{ThemeResource MaberPrimaryTextBrush}"/>
+                  <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                  <Setter Property="VerticalAlignment" Value="Center"/>
+                </Style>
+                <Style x:Key="CheatDescStyle" TargetType="TextBlock">
+                  <Setter Property="FontSize" Value="11.5"/>
+                  <Setter Property="Foreground" Value="{ThemeResource MaberSecondaryTextBrush}"/>
+                  <Setter Property="TextWrapping" Value="Wrap"/>
+                  <Setter Property="VerticalAlignment" Value="Center"/>
+                </Style>
+                <Style x:Key="CheatRowStyle" TargetType="Grid">
+                  <Setter Property="Margin" Value="0,1"/>
+                  <Setter Property="MinHeight" Value="20"/>
+                </Style>
+              </ScrollViewer.Resources>
+
+              <StackPanel x:Name="CheatPanel" Spacing="2">
+                <TextBlock Text="文本" Style="{StaticResource CheatGroupStyle}" Margin="2,0,0,4"/>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="# 标题" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="H1–H6" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="**粗体**" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="强调" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="*斜体*" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="斜体" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="==高亮==" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="标记" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="~~删除线~~" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="删除" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="%%注释%%" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="不渲染" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="#标签" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="标签" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+
+                <TextBlock Text="结构" Style="{StaticResource CheatGroupStyle}"/>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="- 列表" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="无序列表" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="1. 序号" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="有序列表" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="- [ ] 任务" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="点击即写回" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="&gt; 引用" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="引用块" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="&gt; [!note]" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="callout" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="`代码`" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="行内代码" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="```" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="代码块" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="| 表格 |" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="表格" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+
+                <TextBlock Text="链接与嵌入" Style="{StaticResource CheatGroupStyle}"/>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="[[wikilink]]" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="双向链接" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="[[笔记|别名]]" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="别名" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="![[图片.png]]" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="嵌入图片" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+
+                <TextBlock Text="公式与图表" Style="{StaticResource CheatGroupStyle}"/>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="$公式$" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="行内公式" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="$$公式$$" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="块公式" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
+                <Grid Style="{StaticResource CheatRowStyle}">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="94"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="```mermaid" Style="{StaticResource CheatSyntaxStyle}"/>
+                  <TextBlock Grid.Column="1" Text="流程图 / 时序图" Style="{StaticResource CheatDescStyle}"/>
+                </Grid>
               </StackPanel>
             </ScrollViewer>
           </Grid>
