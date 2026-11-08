@@ -24,7 +24,7 @@ public sealed record AppSettings
     {
         Schema = SettingsSchema,
         Theme = Theme is "system" or "light" or "dark" ? Theme : "light",
-        FontFamily = FontFamily is "yahei" or "simsun" or "kaiti" or "mono" ? FontFamily : "default",
+        FontFamily = FontFamily is "yahei" or "wenkai" or "smiley" or "simsun" or "kaiti" or "mono" ? FontFamily : "default",
         FontSize = Math.Clamp(FontSize, 12, 24),
         LineHeight = Math.Clamp(LineHeight, 1.4, 2.2),
         ContentWidth = Math.Clamp(ContentWidth, 30, 70),

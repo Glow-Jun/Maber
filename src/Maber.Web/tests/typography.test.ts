@@ -21,6 +21,11 @@ describe("typography", () => {
     expect(typographyVars({ ...base, fontFamily: "comic" })["--font-family"]).toContain("Segoe UI");
   });
 
+  it("open-source Chinese font presets map to their stacks", () => {
+    expect(typographyVars({ ...base, fontFamily: "wenkai" })["--font-family"]).toContain("霞鹜文楷");
+    expect(typographyVars({ ...base, fontFamily: "smiley" })["--font-family"]).toContain("得意黑");
+  });
+
   it("out-of-range values are clamped", () => {
     const vars = typographyVars({ ...base, fontSize: 100, lineHeight: 0.2, contentWidth: 10 });
     expect(vars["--font-size"]).toBe("24px");

@@ -6,8 +6,10 @@ export interface TypographySettings {
 }
 
 const FONT_STACKS: Record<string, string> = {
-  default: `"Segoe UI", "Microsoft YaHei", system-ui, sans-serif`,
-  yahei: `"Microsoft YaHei", "Segoe UI", system-ui, sans-serif`,
+  default: `"Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif`,
+  yahei: `"Microsoft YaHei", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif`,
+  wenkai: `"霞鹜文楷 GB 屏幕阅读版 R", "LXGW WenKai GB Screen R", "LXGW WenKai", "KaiTi", serif`,
+  smiley: `"得意黑", "Smiley Sans Oblique", "Microsoft YaHei", "Segoe UI", sans-serif`,
   simsun: `SimSun, "Songti SC", serif`,
   kaiti: `KaiTi, "Kaiti SC", serif`,
   mono: `"Cascadia Code", Consolas, "Microsoft YaHei", monospace`,

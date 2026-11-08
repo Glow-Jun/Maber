@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.System;
 
 namespace Maber.App;
@@ -39,6 +40,7 @@ public sealed partial class MainWindow : Window
         Title = "Maber";
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        ApplyAppIcon();
         ModeBadge.Text = "阅读";
         ApplyChromeTheme();
         UpdateDateLabel();
@@ -534,6 +536,7 @@ public sealed partial class MainWindow : Window
     {
         if (Content is FrameworkElement root) root.RequestedTheme = CurrentElementTheme;
         ApplyCaptionButtonTheme();
+        UpdateAppMark();
     }
 
     /// <summary>根元素与 ContentDialog 都按这个主题渲染（弹层不继承根元素 RequestedTheme）</summary>
@@ -555,17 +558,17 @@ public sealed partial class MainWindow : Window
             var bar = AppWindow.TitleBar;
             var light = SettingsHost.ResolveTheme() == "light";
             var fg = light
-                ? Windows.UI.Color.FromArgb(255, 0x1F, 0x23, 0x28)
-                : Windows.UI.Color.FromArgb(255, 0xD6, 0xD9, 0xDD);
+                ? Windows.UI.Color.FromArgb(255, 0x1F, 0x1E, 0x1C)
+                : Windows.UI.Color.FromArgb(255, 0xE8, 0xE6, 0xDC);
             var inactiveFg = light
-                ? Windows.UI.Color.FromArgb(255, 0x9A, 0xA0, 0xA8)
-                : Windows.UI.Color.FromArgb(255, 0x6E, 0x74, 0x7E);
+                ? Windows.UI.Color.FromArgb(255, 0x9A, 0x95, 0x8B)
+                : Windows.UI.Color.FromArgb(255, 0x72, 0x6E, 0x66);
             var hoverBg = light
-                ? Windows.UI.Color.FromArgb(255, 0xEC, 0xEC, 0xE7)
-                : Windows.UI.Color.FromArgb(255, 0x26, 0x2B, 0x33);
+                ? Windows.UI.Color.FromArgb(255, 0xF0, 0xED, 0xE4)
+                : Windows.UI.Color.FromArgb(255, 0x26, 0x24, 0x20);
             var pressedBg = light
-                ? Windows.UI.Color.FromArgb(255, 0xE4, 0xE4, 0xDE)
-                : Windows.UI.Color.FromArgb(255, 0x2F, 0x35, 0x3E);
+                ? Windows.UI.Color.FromArgb(255, 0xE9, 0xE5, 0xDA)
+                : Windows.UI.Color.FromArgb(255, 0x2E, 0x2B, 0x26);
 
             bar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
             bar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
@@ -580,7 +583,7 @@ public sealed partial class MainWindow : Window
 
             // DWM 窗口描边也跟随系统，不处理会在浅色下留一圈深色边（Win11 才支持，失败无副作用）
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var border = light ? 0x00FCFDFD : 0x001D1816; // COLORREF = 0x00BBGGRR
+            var border = light ? 0x00F5F9FA : 0x00131414; // COLORREF = 0x00BBGGRR
             _ = DwmSetWindowAttribute(hwnd, DwmwaBorderColor, ref border, sizeof(int));
         }
         catch { /* 标题栏定制在个别系统版本不可用时不影响功能 */ }
@@ -590,6 +593,29 @@ public sealed partial class MainWindow : Window
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+    /// <summary>窗口/任务栏图标（发布版从 Assets 读取）</summary>
+    private void ApplyAppIcon()
+    {
+        try
+        {
+            var ico = Path.Combine(AppContext.BaseDirectory, "Assets", "Maber.ico");
+            if (File.Exists(ico)) AppWindow.SetIcon(ico);
+        }
+        catch { /* 图标缺失不影响功能 */ }
+    }
+
+    /// <summary>标题栏 monogram：浅色主题用墨色，深色主题用浅墨色</summary>
+    private void UpdateAppMark()
+    {
+        try
+        {
+            var name = SettingsHost.ResolveTheme() == "light" ? "MaberMarkLight.png" : "MaberMarkDark.png";
+            var path = Path.Combine(AppContext.BaseDirectory, "Assets", name);
+            AppMark.Source = File.Exists(path) ? new BitmapImage(new Uri(path)) : null;
+        }
+        catch { AppMark.Source = null; }
+    }
 
     private void OnSettingsChanged(object? s, EventArgs e) => DispatcherQueue.TryEnqueue(() =>
     {
@@ -643,6 +669,8 @@ public sealed partial class MainWindow : Window
         var fontBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         fontBox.Items.Add(new ComboBoxItem { Content = "系统默认", Tag = "default" });
         fontBox.Items.Add(new ComboBoxItem { Content = "微软雅黑", Tag = "yahei" });
+        fontBox.Items.Add(new ComboBoxItem { Content = "霞鹜文楷（屏幕阅读）", Tag = "wenkai" });
+        fontBox.Items.Add(new ComboBoxItem { Content = "得意黑", Tag = "smiley" });
         fontBox.Items.Add(new ComboBoxItem { Content = "宋体", Tag = "simsun" });
         fontBox.Items.Add(new ComboBoxItem { Content = "楷体", Tag = "kaiti" });
         fontBox.Items.Add(new ComboBoxItem { Content = "等宽（Cascadia / Consolas）", Tag = "mono" });
@@ -659,7 +687,11 @@ public sealed partial class MainWindow : Window
             _suppressSettingsEvents = true;
             var s = SettingsHost.Current;
             themeBox.SelectedIndex = s.Theme switch { "light" => 1, "dark" => 2, _ => 0 };
-            fontBox.SelectedIndex = s.FontFamily switch { "yahei" => 1, "simsun" => 2, "kaiti" => 3, "mono" => 4, _ => 0 };
+            fontBox.SelectedIndex = s.FontFamily switch
+            {
+                "yahei" => 1, "wenkai" => 2, "smiley" => 3,
+                "simsun" => 4, "kaiti" => 5, "mono" => 6, _ => 0,
+            };
             sizeSlider.Value = s.FontSize;
             sizeValue.Text = $"{s.FontSize:0} px";
             lhSlider.Value = s.LineHeight;

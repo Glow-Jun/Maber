@@ -1,13 +1,36 @@
-/* 主题变量：唯一取色来源，明暗两套，克制低饱和 */
+/* Paper & Ink 主题：暖纸中性 + 墨色文字 + 单一陶土强调 */
 :root, body[data-theme="light"] {
-  --bg: #fdfdfc; --fg: #1f2328; --fg-soft: #59636e;
-  --accent: #4a7dbe; --border: #e4e7ea;
-  --code-bg: #f4f5f7; --mark-bg: #fff3ad; --find-bg: #ffd54f;
+  --bg: #FAF9F5;
+  --surface: #FFFFFF;
+  --surface-soft: #F5F3EC;
+  --fg: #1F1E1C;
+  --fg-soft: #6B675F;
+  --fg-tertiary: #9A958B;
+  --accent: #C96442;
+  --accent-weak: rgba(201, 100, 66, .10);
+  --border: #E6E2D8;
+  --hover: rgba(31, 30, 28, .05);
+  --code-bg: #F1EEE6;
+  --mark-bg: #F6E3B0;
+  --find-bg: #F2D08A;
 }
+
 body[data-theme="dark"] {
-  --bg: #16181d; --fg: #d6d9dd; --fg-soft: #8b929a;
-  --accent: #7aa5d8; --border: #2a2e35;
-  --code-bg: #1e2128; --mark-bg: #5c5321; --find-bg: #8a6d00;
+  --bg: #141413;
+  --surface: #1B1A18;
+  --surface-soft: #121110;
+  --fg: #E8E6DC;
+  --fg-soft: #A8A49B;
+  --fg-tertiary: #726E66;
+  --accent: #E08A6B;
+  --accent-weak: rgba(224, 138, 107, .14);
+  --border: #2A2825;
+  --hover: rgba(232, 230, 220, .06);
+  --code-bg: #1E1D1A;
+  --mark-bg: #5A4A1F;
+  --find-bg: #7A5C1E;
 }
+
 html { background: var(--bg); }
 body { background: var(--bg); color: var(--fg); }
+::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); }

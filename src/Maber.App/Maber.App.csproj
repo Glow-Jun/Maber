@@ -5,6 +5,7 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>Maber.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Maber.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <Platform>x64</Platform>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
@@ -28,6 +29,8 @@
          用 None 而非 Content：Content 会被 MakePri 当资源扫描，mermaid 的 hash 文件名
          会被解析成非法资源限定符（PRI249）。运行时按 BaseDirectory\wwwroot 直读，不依赖 PRI。 -->
     <None Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- 品牌标记与窗口图标 -->
+    <None Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- WinUI 3 unpackaged 的已知缺口：dotnet publish 不会带上应用自身的 Maber.App.pri，

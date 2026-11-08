@@ -7,31 +7,37 @@
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
 
-      <!-- 与 Web 内核取色对齐：浅色 #fdfdfc / 深色 #16181d，侧栏仅做一级微差 -->
+      <!-- Paper & Ink：暖纸中性 + 墨色文字 + 单一陶土强调 -->
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="MaberWindowBackgroundBrush" Color="#FDFDFC"/>
-          <SolidColorBrush x:Key="MaberSidebarBackgroundBrush" Color="#F7F7F3"/>
-          <SolidColorBrush x:Key="MaberSidebarBorderBrush" Color="#E7E7E1"/>
-          <SolidColorBrush x:Key="MaberSecondaryTextBrush" Color="#6B717A"/>
-          <SolidColorBrush x:Key="MaberTabHoverBackgroundBrush" Color="#F0F0EB"/>
-          <SolidColorBrush x:Key="MaberTabSelectedBackgroundBrush" Color="#E8E8E2"/>
-          <SolidColorBrush x:Key="MaberGhostHoverBackgroundBrush" Color="#EEEEE9"/>
-          <SolidColorBrush x:Key="MaberGhostPressedBackgroundBrush" Color="#E4E4DE"/>
+          <SolidColorBrush x:Key="MaberWindowBackgroundBrush" Color="#FAF9F5"/>
+          <SolidColorBrush x:Key="MaberSurfaceBrush" Color="#FFFFFF"/>
+          <SolidColorBrush x:Key="MaberSidebarBackgroundBrush" Color="#F5F3EC"/>
+          <SolidColorBrush x:Key="MaberSidebarBorderBrush" Color="#E6E2D8"/>
+          <SolidColorBrush x:Key="MaberPrimaryTextBrush" Color="#1F1E1C"/>
+          <SolidColorBrush x:Key="MaberSecondaryTextBrush" Color="#6B675F"/>
+          <SolidColorBrush x:Key="MaberTertiaryTextBrush" Color="#9A958B"/>
+          <SolidColorBrush x:Key="MaberAccentBrush" Color="#C96442"/>
+          <SolidColorBrush x:Key="MaberAccentWeakBrush" Color="#1AC96442"/>
+          <SolidColorBrush x:Key="MaberHoverBackgroundBrush" Color="#0D1F1E1C"/>
+          <SolidColorBrush x:Key="MaberPressedBackgroundBrush" Color="#141F1E1C"/>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Default">
-          <SolidColorBrush x:Key="MaberWindowBackgroundBrush" Color="#16181D"/>
-          <SolidColorBrush x:Key="MaberSidebarBackgroundBrush" Color="#121418"/>
-          <SolidColorBrush x:Key="MaberSidebarBorderBrush" Color="#262A31"/>
-          <SolidColorBrush x:Key="MaberSecondaryTextBrush" Color="#8B929A"/>
-          <SolidColorBrush x:Key="MaberTabHoverBackgroundBrush" Color="#1E2229"/>
-          <SolidColorBrush x:Key="MaberTabSelectedBackgroundBrush" Color="#272B33"/>
-          <SolidColorBrush x:Key="MaberGhostHoverBackgroundBrush" Color="#1E2229"/>
-          <SolidColorBrush x:Key="MaberGhostPressedBackgroundBrush" Color="#272B33"/>
+          <SolidColorBrush x:Key="MaberWindowBackgroundBrush" Color="#141413"/>
+          <SolidColorBrush x:Key="MaberSurfaceBrush" Color="#1B1A18"/>
+          <SolidColorBrush x:Key="MaberSidebarBackgroundBrush" Color="#121110"/>
+          <SolidColorBrush x:Key="MaberSidebarBorderBrush" Color="#2A2825"/>
+          <SolidColorBrush x:Key="MaberPrimaryTextBrush" Color="#E8E6DC"/>
+          <SolidColorBrush x:Key="MaberSecondaryTextBrush" Color="#A8A49B"/>
+          <SolidColorBrush x:Key="MaberTertiaryTextBrush" Color="#726E66"/>
+          <SolidColorBrush x:Key="MaberAccentBrush" Color="#E08A6B"/>
+          <SolidColorBrush x:Key="MaberAccentWeakBrush" Color="#24E08A6B"/>
+          <SolidColorBrush x:Key="MaberHoverBackgroundBrush" Color="#0FE8E6DC"/>
+          <SolidColorBrush x:Key="MaberPressedBackgroundBrush" Color="#17E8E6DC"/>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
 
-      <!-- 侧栏标签：默认透明，悬停淡染，选中仅用一层浅底，避免默认 ToggleButton 的重灰块 -->
+      <!-- 侧栏标签：ghost 文本 + 选中陶土下划线 -->
       <Style x:Key="SidebarTabStyle" TargetType="ToggleButton">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -47,17 +53,20 @@
                   <ContentPresenter Content="{TemplateBinding Content}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
+                <Border x:Name="Underline" Height="2" Width="18" CornerRadius="1"
+                        Margin="0,0,0,1" Background="{ThemeResource MaberAccentBrush}"
+                        HorizontalAlignment="Center" VerticalAlignment="Bottom" Opacity="0"/>
                 <VisualStateManager.VisualStateGroups>
                   <VisualStateGroup x:Name="CommonStates">
                     <VisualState x:Name="Normal"/>
                     <VisualState x:Name="PointerOver">
                       <VisualState.Setters>
-                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberTabHoverBackgroundBrush}"/>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberHoverBackgroundBrush}"/>
                       </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Pressed">
                       <VisualState.Setters>
-                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberTabSelectedBackgroundBrush}"/>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberPressedBackgroundBrush}"/>
                       </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled"/>
@@ -66,7 +75,7 @@
                     <VisualState x:Name="Unchecked"/>
                     <VisualState x:Name="Checked">
                       <VisualState.Setters>
-                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberTabSelectedBackgroundBrush}"/>
+                        <Setter Target="Underline.Opacity" Value="1"/>
                       </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Indeterminate"/>
@@ -78,12 +87,12 @@
         </Setter>
       </Style>
 
-      <!-- 幽灵按钮：设置入口与标题栏 ☰，无边框无底色，只有悬停反馈 -->
+      <!-- 幽灵按钮：设置入口与标题栏 ☰ -->
       <Style x:Key="GhostButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Foreground" Value="{ThemeResource MaberSecondaryTextBrush}"/>
-        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="CornerRadius" Value="7"/>
         <Setter Property="Template">
           <Setter.Value>
             <ControlTemplate TargetType="Button">
@@ -99,12 +108,12 @@
                     <VisualState x:Name="Normal"/>
                     <VisualState x:Name="PointerOver">
                       <VisualState.Setters>
-                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberGhostHoverBackgroundBrush}"/>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberHoverBackgroundBrush}"/>
                       </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Pressed">
                       <VisualState.Setters>
-                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberGhostPressedBackgroundBrush}"/>
+                        <Setter Target="Chrome.Background" Value="{ThemeResource MaberPressedBackgroundBrush}"/>
                       </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="Disabled"/>

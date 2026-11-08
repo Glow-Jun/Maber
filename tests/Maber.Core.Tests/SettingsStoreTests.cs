@@ -110,6 +110,14 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal(70, s.ContentWidth);
     }
 
+    [Theory]
+    [InlineData("wenkai")]
+    [InlineData("smiley")]
+    public void Normalize_KeepsOpenSourceFontKeys(string key)
+    {
+        Assert.Equal(key, new AppSettings { FontFamily = key }.Normalize().FontFamily);
+    }
+
     [Fact]
     public void NormalizeRecent_DedupesPrunesAndCaps()
     {
