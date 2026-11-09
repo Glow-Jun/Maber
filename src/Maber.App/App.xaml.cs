@@ -1,3 +1,4 @@
+using Maber.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.Web.WebView2.Core;
 
@@ -9,7 +10,13 @@ public partial class App : Application
     private static Task<CoreWebView2Environment>? _webEnv;
     private static int _liveWindows;
 
-    public App() => this.InitializeComponent();
+    public App()
+    {
+        // 安装到 Program Files 后程序目录不可写；用官方环境变量把 WebView2 缓存放到用户数据目录
+        Environment.SetEnvironmentVariable(
+            "WEBVIEW2_USER_DATA_FOLDER", Path.Combine(MaberPaths.LocalDirectory, "WebView2"));
+        this.InitializeComponent();
+    }
 
     /// <summary>窗口生命周期统一计数：所有窗口关闭后退出进程，避免后台残留</summary>
     public static void TrackWindow(Window window)
