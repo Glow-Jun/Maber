@@ -2,9 +2,9 @@
 
 类 Typora 的极简 Markdown 阅读器，为随时打开散落各处的 Markdown 文档而设计：像 Notepad 一样轻快，不要求工作区或笔记库。WinUI 3 原生壳 + WebView2 渲染内核，原生窗口的轻量与 Web 排版生态兼得。
 
-v0.4.0「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
+v0.4.1「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
 
-![status](https://img.shields.io/badge/version-v0.4.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
+![status](https://img.shields.io/badge/version-v0.4.1-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
 
 ## 特性
 
@@ -72,6 +72,17 @@ v0.4.0「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、�
 | `Ctrl+P` | 快速打开 |
 | `Ctrl+,` | 设置 |
 
+## 安装
+
+运行 `Maber-Setup-0.4.1.exe`：
+
+- 产品名称与主程序均为 **Maber**（`Maber.exe`）
+- 默认按当前用户安装到 `%LOCALAPPDATA%\Programs\Maber`，无需管理员权限
+- 创建开始菜单快捷方式，可选桌面图标；可在“设置 → 应用 → 已安装的应用”中卸载
+- 配置、阅读位置与字体保留在 `%LOCALAPPDATA%\Maber`，卸载不会删除
+
+也可以直接运行 `publish\Maber.exe` 便携使用。
+
 ## 构建
 
 依赖：.NET 10 SDK、Node 24+（仅 Web 内核开发需要）、Windows 10 1809+。
@@ -83,6 +94,9 @@ cd src/Maber.Web && npm install && npm run build
 # 应用
 dotnet build
 dotnet run --project src/Maber.App
+
+# 安装包（需 Inno Setup 6，输出到仓库根目录）
+iscc installer/Maber.iss
 ```
 
 测试：`dotnet test`（C# 内核）+ `npm test`（渲染内核，在 src/Maber.Web 下）。
@@ -98,7 +112,7 @@ dotnet run --project src/Maber.App
 
 设置与最近文件存放于 `%LOCALAPPDATA%\Maber\settings.json`，阅读位置与导入字体分别在 `reading-state.json` 与 `fonts\` 目录。
 
-## 当前限制（v0.4.0）
+## 当前限制（v0.4.1）
 
 - 无 vault / 工作区概念，wikilink 按当前文件位置逐级向上解析
 - 源码模式为纯编辑器，非所见即所得
