@@ -2,7 +2,7 @@
 ; 产品名固定为 Maber，安装后的主程序为 Maber.exe
 
 #define MyAppName "Maber"
-#define MyAppVersion "0.4.2"
+#define MyAppVersion "0.4.3"
 #define MyAppExeName "Maber.exe"
 
 [Setup]
@@ -48,6 +48,8 @@ Name: "{autodesktop}\Maber"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopic
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch Maber"; Flags: nowait postinstall skipifsilent
+; 文件关联图标变更后刷新 Explorer 图标缓存
+Filename: "{sys}\ie4uinit.exe"; Parameters: "-show"; Flags: runhidden nowait
 
 [Registry]
 ; ProgID：Markdown 文档的图标与打开命令
@@ -62,7 +64,7 @@ Root: HKA; Subkey: "Software\Classes\.markdown\OpenWithProgids"; ValueType: stri
 
 ; 应用注册：选择其他应用 / 打开方式列表
 Root: HKA; Subkey: "Software\Classes\Applications\Maber.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Maber"; Flags: uninsdeletekey
-Root: HKA; Subkey: "Software\Classes\Applications\Maber.exe\DefaultIcon"; ValueType: string; ValueData: "{app}\Maber.exe,0"
+Root: HKA; Subkey: "Software\Classes\Applications\Maber.exe\DefaultIcon"; ValueType: string; ValueData: "{app}\Assets\MaberMarkdown.ico,0"
 Root: HKA; Subkey: "Software\Classes\Applications\Maber.exe\shell\open\command"; ValueType: string; ValueData: """{app}\Maber.exe"" ""%1"""
 Root: HKA; Subkey: "Software\Classes\Applications\Maber.exe\SupportedTypes"; ValueType: string; ValueName: ".md"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\Applications\Maber.exe\SupportedTypes"; ValueType: string; ValueName: ".markdown"; ValueData: ""
