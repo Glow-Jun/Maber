@@ -2,9 +2,9 @@
 
 类 Typora 的极简 Markdown 阅读器，为随时打开散落各处的 Markdown 文档而设计：像 Notepad 一样轻快，不要求工作区或笔记库。WinUI 3 原生壳 + WebView2 渲染内核，原生窗口的轻量与 Web 排版生态兼得。
 
-v0.4.2「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
+v0.4.3「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
 
-![status](https://img.shields.io/badge/version-v0.4.2-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
+![status](https://img.shields.io/badge/version-v0.4.3-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
 
 ## 特性
 
@@ -74,7 +74,7 @@ v0.4.2「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、�
 
 ## 安装
 
-运行 `Maber-Setup-0.4.2.exe`：
+运行 `Maber-Setup-0.4.3.exe`：
 
 - 产品名称与主程序均为 **Maber**（`Maber.exe`）
 - 默认安装到 `C:\Program Files\Maber`，安装向导中可修改路径（需要管理员权限）
@@ -113,7 +113,7 @@ iscc installer/Maber.iss
 
 设置与最近文件存放于 `%LOCALAPPDATA%\Maber\settings.json`，阅读位置与导入字体分别在 `reading-state.json` 与 `fonts\` 目录。
 
-## 当前限制（v0.4.2）
+## 当前限制（v0.4.3）
 
 - 无 vault / 工作区概念，wikilink 按当前文件位置逐级向上解析
 - 源码模式为纯编辑器，非所见即所得
