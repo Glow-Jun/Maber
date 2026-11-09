@@ -7,7 +7,7 @@
     <AssemblyName>Maber</AssemblyName>
     <Product>Maber</Product>
     <AssemblyTitle>Maber</AssemblyTitle>
-    <Version>0.4.1</Version>
+    <Version>0.4.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\Maber.ico</ApplicationIcon>
     <Platforms>x64</Platforms>

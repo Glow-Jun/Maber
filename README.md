@@ -2,9 +2,9 @@
 
 类 Typora 的极简 Markdown 阅读器，为随时打开散落各处的 Markdown 文档而设计：像 Notepad 一样轻快，不要求工作区或笔记库。WinUI 3 原生壳 + WebView2 渲染内核，原生窗口的轻量与 Web 排版生态兼得。
 
-v0.4.1「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
+v0.4.2「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、墨色文字、单一陶土强调色。
 
-![status](https://img.shields.io/badge/version-v0.4.1-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
+![status](https://img.shields.io/badge/version-v0.4.2-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010+-lightgrey)
 
 ## 特性
 
@@ -74,11 +74,12 @@ v0.4.1「Settings & Reading」采用 Paper & Ink 设计语言：暖纸底色、�
 
 ## 安装
 
-运行 `Maber-Setup-0.4.1.exe`：
+运行 `Maber-Setup-0.4.2.exe`：
 
 - 产品名称与主程序均为 **Maber**（`Maber.exe`）
-- 默认按当前用户安装到 `%LOCALAPPDATA%\Programs\Maber`，无需管理员权限
+- 默认安装到 `C:\Program Files\Maber`，安装向导中可修改路径（需要管理员权限）
 - 创建开始菜单快捷方式，可选桌面图标；可在“设置 → 应用 → 已安装的应用”中卸载
+- 注册 `.md` / `.markdown` 文件关联：Maber 会出现在“打开方式”和 Windows 默认应用的推荐列表中；Markdown 文件使用羊皮卷图标
 - 配置、阅读位置与字体保留在 `%LOCALAPPDATA%\Maber`，卸载不会删除
 
 也可以直接运行 `publish\Maber.exe` 便携使用。
@@ -112,7 +113,7 @@ iscc installer/Maber.iss
 
 设置与最近文件存放于 `%LOCALAPPDATA%\Maber\settings.json`，阅读位置与导入字体分别在 `reading-state.json` 与 `fonts\` 目录。
 
-## 当前限制（v0.4.1）
+## 当前限制（v0.4.2）
 
 - 无 vault / 工作区概念，wikilink 按当前文件位置逐级向上解析
 - 源码模式为纯编辑器，非所见即所得
