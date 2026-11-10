@@ -1,10 +1,12 @@
 import MarkdownIt from "markdown-it";
+import footnote from "markdown-it-footnote";
 
 export function buildRenderer(): MarkdownIt {
   // breaks: Obsidian 默认把段内单换行渲染为换行，而非 CommonMark 的软换行
   // linkify 关闭：linkify-it 会把 MOC.md/Map.md 这类 "xx.md" 误判为域名链接；Obsidian 也不自动链裸域名
   const md = new MarkdownIt({ html: true, linkify: false, breaks: true })
-    .enable(["table", "strikethrough"]);
+    .enable(["table", "strikethrough"])
+    .use(footnote);
 
   // 标题带源行号（heading_open token.map[0] 即行首）
   const defaultHeadingOpen = md.renderer.rules.heading_open ?? ((t, i, e, _o, s) => s.renderToken(t, i, e));

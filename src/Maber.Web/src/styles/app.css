@@ -77,6 +77,14 @@ mark.find-hit.current { outline: 2px solid var(--accent); }
 }
 #content .katex-error { color: #C0504D; font-family: monospace; }
 
+/* 脚注（markdown-it-footnote） */
+#content hr.footnotes-sep { border: 0; border-top: 1px solid var(--border); margin: 2.5em 0 1em; }
+#content .footnotes { font-size: .9em; color: var(--fg-soft); }
+#content .footnotes-list { padding-left: 1.4em; }
+#content .footnote-item { margin: .4em 0; }
+#content .footnote-ref a, #content .footnote-backref { text-decoration: none; }
+#content .footnote-backref { margin-left: .35em; }
+
 /* 任务列表：标记点由 main.ts 注入 .task-marker */
 #content li.task { list-style: none; margin-left: -1.2em; }
 #content li.task::before { display: none; }

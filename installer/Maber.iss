@@ -2,7 +2,10 @@
 ; 产品名固定为 Maber，安装后的主程序为 Maber.exe
 
 #define MyAppName "Maber"
-#define MyAppVersion "0.4.3"
+; 版本由 installer/build-exe.ps1 通过 /DMyAppVersion 传入；手工编译时用下面的默认值
+#ifndef MyAppVersion
+  #define MyAppVersion "0.3.0"
+#endif
 #define MyAppExeName "Maber.exe"
 
 [Setup]
@@ -39,7 +42,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; publish\app 由 installer/build-exe.ps1 生成，与 MSIX 的 publish\msix 隔离
+Source: "..\publish\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Maber"; Filename: "{app}\{#MyAppExeName}"
@@ -75,3 +79,28 @@ Root: HKA; Subkey: "Software\Classes\Maber\Capabilities"; ValueType: string; Val
 Root: HKA; Subkey: "Software\Classes\Maber\Capabilities\FileAssociations"; ValueType: string; ValueName: ".md"; ValueData: "Maber.Markdown"
 Root: HKA; Subkey: "Software\Classes\Maber\Capabilities\FileAssociations"; ValueType: string; ValueName: ".markdown"; ValueData: "Maber.Markdown"
 Root: HKA; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Maber"; ValueData: "Software\Classes\Maber\Capabilities"; Flags: uninsdeletevalue
+
+[Code]
+function HasDotNet10Desktop(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := False;
+  // findstr 命中返回 0，未命中返回 1；不引入临时文件与编码问题
+  if Exec('cmd.exe',
+          '/c dotnet --list-runtimes | findstr /C:"Microsoft.WindowsDesktop.App 10." >nul 2>&1',
+          '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Result := ResultCode = 0;
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+  if not HasDotNet10Desktop() then
+  begin
+    if MsgBox('Maber 需要 .NET 10 Desktop Runtime（x64）。' + #13#10 +
+              '未检测到该运行时，安装后程序可能无法启动。' + #13#10#13#10 +
+              '是否仍然继续安装？', mbConfirmation, MB_YESNO) = IDNO then
+      Result := False;
+  end;
+end;

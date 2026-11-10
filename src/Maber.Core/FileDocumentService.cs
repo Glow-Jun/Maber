@@ -13,7 +13,9 @@ public sealed class FileDocumentService
             bufferSize: 64 * 1024, useAsync: true);
         using var ms = new MemoryStream();
         await fs.CopyToAsync(ms, ct);
-        var (text, enc, bom) = EncodingDetector.Decode(ms.ToArray());
+        var bytes = ms.ToArray();
+        if (EncodingDetector.IsLikelyBinary(bytes)) throw new BinaryFileException();
+        var (text, enc, bom) = EncodingDetector.Decode(bytes);
         return new LoadedDocument(path, text, enc, bom);
     }
 

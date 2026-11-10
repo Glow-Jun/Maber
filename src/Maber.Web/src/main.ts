@@ -80,14 +80,31 @@ function injectTaskMarkers(root: HTMLElement) {
   }
 }
 
-// 相对路径图片统一指向宿主映射的文件域；含空格/中文的路径需编码
+// 相对路径图片统一指向宿主映射的文件域；逐段编码，兼容已编码的中文/空格且不重复编码
+function encodeAssetPath(path: string): string {
+  return path
+    .split("/")
+    .map((segment) => {
+      try {
+        return encodeURIComponent(decodeURIComponent(segment));
+      } catch {
+        return encodeURIComponent(segment);
+      }
+    })
+    .join("/");
+}
+
 function rewriteLocalImages(root: HTMLElement) {
   if (!contentBase) return;
   for (const img of root.querySelectorAll<HTMLImageElement>("img")) {
     const embed = img.getAttribute("data-embed");
     const src = embed ?? img.getAttribute("src") ?? "";
-    if (!src || /^(https?:|data:|blob:)/i.test(src)) continue;
-    img.src = contentBase + encodeURI(src.replace(/^\.\//, "")).replace(/\+/g, "%2B");
+    if (!src || /^(https?:|data:|blob:|\/\/)/i.test(src)) continue;
+    const normalized = src.replace(/^\.\//, "");
+    // 以 / 开头按 Obsidian vault 根处理，宿主会把它解析到内容根目录
+    const fromRoot = normalized.startsWith("/");
+    const rel = fromRoot ? normalized.slice(1) : normalized;
+    img.src = contentBase + (fromRoot ? "@root/" : "") + encodeAssetPath(rel);
   }
 }
 
@@ -95,20 +112,31 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 }
 
+function scrollRatio(): number {
+  const max = appEl.scrollHeight - appEl.clientHeight;
+  return max > 0 ? appEl.scrollTop / max : 0;
+}
+
+// 模式切换期间布局会剧烈变化，抑制这段滚动事件，避免把阅读位置写成 0
+let suppressPosition = false;
+
 async function setMode(next: ViewMode) {
   if (next === mode) return;
+  const ratio = mode === "render" ? scrollRatio() : (editor?.scrollRatio() ?? 0);
+  suppressPosition = true;
   mode = next;
   if (next === "source") {
     (await ensureEditor()).show(currentText);
     content.style.display = "none";
+    editor?.setScrollRatio(ratio);
   } else {
     const text = editor?.hide() ?? currentText;
     content.style.display = "";
     renderDocument(text); // 空文档也要重渲染，否则清空全文后会继续显示旧内容
+    restoreScroll(ratio);
   }
-  // 清掉残留 scrollTop：源码态 #app overflow hidden，残留会让编辑器整体偏移
-  document.querySelector("#app")!.scrollTop = 0;
   document.body.dataset.mode = mode;
+  requestAnimationFrame(() => { suppressPosition = false; });
 }
 
 // 任务复选框点击 → 通知宿主写回源文件
@@ -130,10 +158,25 @@ content.addEventListener("click", (e) => {
   if (link) {
     e.preventDefault();
     if (link.classList.contains("wikilink")) {
-      send({ type: "openWikilink", target: link.getAttribute("data-target") ?? "" });
+      send({
+        type: "openWikilink",
+        target: link.getAttribute("data-target") ?? "",
+        anchor: link.getAttribute("data-anchor") || undefined,
+      });
       return;
     }
-    send({ type: "openLink", href: link.getAttribute("href") ?? "" });
+    const href = link.getAttribute("href") ?? "";
+    // 脚注与页内 id 直接在当前文档滚动，不必绕回宿主
+    if (href.startsWith("#")) {
+      let id = href.slice(1);
+      try { id = decodeURIComponent(id); } catch { /* 保留原值 */ }
+      const target = document.getElementById(id);
+      if (target) {
+        target.scrollIntoView({ block: "start", behavior: "smooth" });
+        return;
+      }
+    }
+    send({ type: "openLink", href });
   }
 });
 
@@ -151,6 +194,7 @@ onHostMessage((msg) => {
         document.body.dataset.mode = "render";
       }
       appEl.scrollTop = 0;
+      lastSentRatio = -1;
       renderDocument(msg.content);
       break;
     case "setMode": setMode(msg.mode); break;
@@ -268,12 +312,11 @@ window.addEventListener(
 let lastSentRatio = -1;
 let scrollTimer: number | undefined;
 appEl.addEventListener("scroll", () => {
+  if (suppressPosition || mode !== "render") return;
   if (scrollTimer !== undefined) return;
   scrollTimer = window.setTimeout(() => {
     scrollTimer = undefined;
-    const max = appEl.scrollHeight - appEl.clientHeight;
-    if (max <= 0) return;
-    const ratio = Math.min(1, Math.max(0, appEl.scrollTop / max));
+    const ratio = scrollRatio();
     if (Math.abs(ratio - lastSentRatio) < 0.002) return;
     lastSentRatio = ratio;
     send({ type: "readingPosition", ratio });

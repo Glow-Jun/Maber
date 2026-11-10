@@ -1,11 +1,13 @@
 {
   "name": "maber-web",
   "private": true,
-  "version": "0.4.3",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "build:debug": "node build.mjs --sourcemap",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "watch": "node build.mjs --watch"
   },
   "dependencies": {
@@ -18,6 +20,7 @@
     "@codemirror/view": "^6",
     "katex": "^0.16",
     "markdown-it": "^14",
+    "markdown-it-footnote": "^4.0.0",
     "mermaid": "^11"
   },
   "devDependencies": {

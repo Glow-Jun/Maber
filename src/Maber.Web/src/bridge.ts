@@ -5,7 +5,7 @@ declare global {
   interface Window {
     chrome?: {
       webview?: {
-        postMessage(message: string): void;
+        postMessage(message: unknown): void;
         addEventListener(type: "message", listener: (ev: { data: unknown }) => void): void;
       };
     };

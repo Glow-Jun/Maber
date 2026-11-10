@@ -179,6 +179,7 @@ version and the license declared by the package.
 | linkify-it | 5.0.2 | MIT |
 | lodash-es | 4.18.1 | MIT |
 | markdown-it | 14.3.3 | MIT |
+| markdown-it-footnote | 4.0.0 | MIT |
 | marked | 16.4.2 | MIT |
 | mdurl | 2.1.0 | MIT |
 | mermaid | 11.17.2 | MIT |

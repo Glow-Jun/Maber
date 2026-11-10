@@ -64,20 +64,24 @@ function addWikilinkRule(md: MarkdownIt) {
       if (raw[k] === "\\") { k++; continue; }
       if (raw[k] === "|") { sep = k; break; }
     }
-    const target = unescape(sep === -1 ? raw : raw.slice(0, sep)).split("#")[0].trim();
-    const alias = sep === -1 ? undefined : unescape(raw.slice(sep + 1));
-    if (!target && !alias) return false;
+    const linkText = unescape(sep === -1 ? raw : raw.slice(0, sep)).trim();
+    const hash = linkText.indexOf("#");
+    const target = (hash >= 0 ? linkText.slice(0, hash) : linkText).trim();
+    const anchor = hash >= 0 ? linkText.slice(hash + 1).trim() : "";
+    const alias = sep === -1 ? undefined : unescape(raw.slice(sep + 1)).trim();
+    if (!target && !anchor && !alias) return false;
 
     if (!silent) {
       const tok = state.push("html_inline", "", 0);
-      if (isEmbed && /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(target)) {
+      if (isEmbed && target && /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i.test(target)) {
         // src 由 main.ts 统一重写到宿主映射的文件域，这里只带原始目标
         tok.content = `<img class="embed" data-embed="${md.utils.escapeHtml(target)}" alt="${md.utils.escapeHtml(target)}">`;
       } else if (isEmbed) {
         tok.content = `<span class="embed-placeholder">![[]] ${md.utils.escapeHtml(target)}</span>`;
       } else {
-        const label = (alias ?? target).split("#")[0] || target;
-        tok.content = `<a class="wikilink" data-target="${md.utils.escapeHtml(target)}" href="#">${md.utils.escapeHtml(label)}</a>`;
+        // `[[#标题]]` 目标为空、只有锚点，宿主会把它当作当前文档内跳转
+        const label = alias || (target ? (anchor ? `${target} > ${anchor}` : target) : anchor);
+        tok.content = `<a class="wikilink" data-target="${md.utils.escapeHtml(target)}" data-anchor="${md.utils.escapeHtml(anchor)}" href="#">${md.utils.escapeHtml(label)}</a>`;
       }
     }
     state.pos = close + 2;

@@ -23,3 +23,6 @@ Desktop.ini
 Maber-v*-win-x64.zip
 Maber-Refresh-v*-win-x64.zip
 Maber-Setup-*.exe
+Maber-*.msix
+installer/msix/*.pfx
+installer/msix/*.cer

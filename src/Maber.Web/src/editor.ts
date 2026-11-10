@@ -95,6 +95,25 @@ export class SourceEditor {
     this.view.dispatch({ effects: setFindQuery.of("") });
   }
 
+  /** 当前滚动比例（0–1），用于阅读/源码切换时保持视口 */
+  scrollRatio(): number {
+    const view = this.view;
+    if (!view) return 0;
+    const el = view.scrollDOM;
+    const max = el.scrollHeight - el.clientHeight;
+    return max > 0 ? el.scrollTop / max : 0;
+  }
+
+  setScrollRatio(ratio: number) {
+    const view = this.view;
+    if (!view) return;
+    requestAnimationFrame(() => {
+      const el = view.scrollDOM;
+      const max = el.scrollHeight - el.clientHeight;
+      el.scrollTop = max > 0 ? Math.min(1, Math.max(0, ratio)) * max : 0;
+    });
+  }
+
   hide(): string {
     if (!this.view) return "";
     const text = this.view.state.doc.toString();

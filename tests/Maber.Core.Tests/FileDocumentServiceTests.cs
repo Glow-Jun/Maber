@@ -59,4 +59,13 @@ public class FileDocumentServiceTests : IDisposable
         await _svc.SaveAsync(path, "fresh", "utf-8", false);
         Assert.Equal("fresh", await File.ReadAllTextAsync(path));
     }
+
+    [Fact]
+    public async Task Load_BinaryFile_Throws()
+    {
+        var path = Path.Combine(_dir, "fake.md");
+        await File.WriteAllBytesAsync(path, new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x00, 0x01, 0x02 });
+
+        await Assert.ThrowsAsync<BinaryFileException>(() => _svc.LoadAsync(path));
+    }
 }

@@ -41,10 +41,12 @@ public sealed partial class MainWindow : Window
     private bool _sidebarOpen = true;
     private ToggleButton? _currentSidebarTab;
     private Storyboard? _sidebarStory;
+    private string? _pendingAnchor;   // 新窗口加载完成后要跳转的标题锚点
 
-    public MainWindow(string? initialPath = null, bool totalMode = false)
+    public MainWindow(string? initialPath = null, bool totalMode = false, string? anchor = null)
     {
         _totalMode = totalMode;
+        _pendingAnchor = anchor;
         Perf($"window:ctor {(initialPath is null ? "main" : $"wikilink {Path.GetFileName(initialPath)}")} total={totalMode}");
         InitializeComponent();
         _readingMarks = _readingStore.Load();
@@ -390,19 +392,37 @@ public sealed partial class MainWindow : Window
 
     private async Task LoadFileAsync(string path)
     {
-        _doc = await _files.LoadAsync(path);
-        _currentText = _doc.Value.Text;
+        LoadedDocument doc;
+        try
+        {
+            doc = await _files.LoadAsync(path);
+        }
+        catch (BinaryFileException)
+        {
+            ShowBar("这不是文本文件，已拒绝渲染");
+            return;
+        }
+        catch (Exception ex)
+        {
+            Perf($"open:error {ex.GetType().Name} {ex.Message}");
+            ShowBar($"打开文件失败：{ex.Message}");
+            return;
+        }
+
+        _doc = doc;
+        _currentText = doc.Text;
         _dirty = false;
-        SettingsHost.RecordRecent(_doc.Value.Path);
+        SettingsHost.RecordRecent(doc.Path);
         _outline = new();          // 新大纲到达前不要展示上一个文件的
         if (_totalMode) RefreshSidebarOutline();
         _watcher.Attach(path);
         TitleText.Text = Path.GetFileName(path);
         // 文档内相对资源的伺服根目录（WebResourceRequested 处理器读取）
         _contentDir = Path.GetDirectoryName(Path.GetFullPath(path));
+        _contentRoot = FindContentRoot(_contentDir);
         PostDocument();
         if (SettingsHost.Current.RestoreReadingPosition &&
-            _readingMarks.TryGetValue(_doc.Value.Path, out var mark) && mark.Ratio > 0.001)
+            _readingMarks.TryGetValue(doc.Path, out var mark) && mark.Ratio > 0.001)
             Post(new { type = BridgeMessages.RestoreReadingPosition, ratio = mark.Ratio });
     }
 
@@ -425,6 +445,7 @@ public sealed partial class MainWindow : Window
     private const string ContentHost = "md.localhost";
     private Microsoft.Web.WebView2.Core.CoreWebView2Environment? _env;
     private string? _contentDir;
+    private string? _contentRoot;   // 资源根：优先 Obsidian vault（含 .obsidian 的祖先），否则向上最多 6 层
 
     private static readonly Dictionary<string, string> MimeByExt = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -443,16 +464,22 @@ public sealed partial class MainWindow : Window
         {
             var env = _env;
             var dir = _contentDir; // 快照：切换文档后，旧文档的在途请求不要解析到新目录
-            if (env is null || dir is null)
+            var rootDir = _contentRoot ?? dir;
+            if (env is null || dir is null || rootDir is null)
             {
                 e.Response = env?.CreateWebResourceResponse(null, 404, "Not Found", "");
                 return;
             }
             var uri = new Uri(e.Request.Uri);
-            var rel = Uri.UnescapeDataString(uri.AbsolutePath).TrimStart('/');
-            var full = Path.GetFullPath(Path.Combine(dir, rel));
-            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(dir)) + Path.DirectorySeparatorChar;
-            if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
+            var requestPath = Uri.UnescapeDataString(uri.AbsolutePath);
+            // main.ts 给以 / 开头的图片加 @root/ 前缀，表示从内容根（vault 根）解析
+            var fromRoot = requestPath.StartsWith("/@root/", StringComparison.OrdinalIgnoreCase);
+            var rel = (fromRoot ? requestPath["/@root/".Length..] : requestPath.TrimStart('/'))
+                .Replace('/', Path.DirectorySeparatorChar);
+            var baseDir = fromRoot ? rootDir : dir;
+            var full = Path.GetFullPath(Path.Combine(baseDir, rel));
+            // 允许 ../ 与 vault 根引用，但不得越出内容根
+            if (!IsWithin(full, rootDir) || !File.Exists(full))
             {
                 Perf($"res:404 {rel}");
                 e.Response = env.CreateWebResourceResponse(null, 404, "Not Found", "");
@@ -500,43 +527,132 @@ public sealed partial class MainWindow : Window
     }
 
     // ---------- wikilink 跳转 ----------
-    // 在新窗口打开链接目标；解析支持绝对路径与相对路径
-    private void OpenWikilink(string target)
+    // 在新窗口打开链接目标；解析支持绝对路径、相对路径与 #标题锚点
+    private void OpenWikilink(string target, string? anchor = null)
     {
-        if (_doc is null || string.IsNullOrWhiteSpace(target)) return;
+        if (_doc is null) return;
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            ScrollToAnchor(anchor); // [[#标题]]：当前文档内跳转
+            return;
+        }
         var resolved = ResolveWikilink(_doc.Value.Path, target);
         if (resolved is null) { ShowBar($"未找到链接目标「{target}」"); return; }
-        Perf($"wikilink:clicked target={Path.GetFileName(resolved)}");
-        var window = new MainWindow(resolved);
+        Perf($"wikilink:clicked target={Path.GetFileName(resolved)} anchor={anchor}");
+        var window = new MainWindow(resolved, anchor: anchor);
         Perf("wikilink:ctor-done");
         window.Activate();
         Perf("wikilink:activate-called");
     }
 
-    /// <summary>标准 Markdown 相对链接（[text](docs/xx.md)）：剥掉 # 锚点后相对当前文件解析，新窗口打开</summary>
+    /// <summary>本地链接：解码中文/空格，支持相对/绝对路径与 #锚点</summary>
     private void OpenLocalMarkdownLink(string href)
     {
         if (_doc is null || string.IsNullOrWhiteSpace(href)) return;
-        var clean = href.Split('#')[0].Trim();
-        if (clean.Length == 0) return;
+        var raw = href.Trim();
+        var hash = raw.IndexOf('#');
+        string anchor;
+        try
+        {
+            anchor = hash >= 0 ? Uri.UnescapeDataString(raw[(hash + 1)..]).Trim() : "";
+        }
+        catch (UriFormatException)
+        {
+            anchor = raw[(hash + 1)..].Trim();
+        }
+        var pathPart = hash >= 0 ? raw[..hash] : raw;
+        string clean;
+        try
+        {
+            clean = Uri.UnescapeDataString(pathPart).Trim();
+        }
+        catch (UriFormatException)
+        {
+            clean = pathPart.Trim();
+        }
+        clean = clean.Split('?')[0];
+        if (clean.Length == 0)
+        {
+            ScrollToAnchor(anchor); // [标题](#标题)
+            return;
+        }
         if (!clean.EndsWith(".md", StringComparison.OrdinalIgnoreCase) &&
             !clean.EndsWith(".markdown", StringComparison.OrdinalIgnoreCase))
         {
-            ShowBar($"暂不支持打开「{href}」"); // 非 md 的本地文件（如 pdf）v0.1 不处理
+            ShowBar($"暂不支持打开「{href}」");
             return;
         }
         try
         {
-            var full = Path.GetFullPath(Path.Combine(
-                Path.GetDirectoryName(_doc.Value.Path)!, clean.Replace('/', Path.DirectorySeparatorChar)));
+            var target = clean.Replace('/', Path.DirectorySeparatorChar);
+            string full;
+            if (clean.StartsWith('/') && _contentRoot is not null)
+                full = Path.GetFullPath(Path.Combine(_contentRoot, target.TrimStart(Path.DirectorySeparatorChar)));
+            else if (Path.IsPathRooted(target))
+                full = Path.GetFullPath(target);
+            else
+                full = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(_doc.Value.Path)!, target));
             if (!File.Exists(full)) { ShowBar($"未找到链接目标「{href}」"); return; }
-            var window = new MainWindow(full);
+            if (string.Equals(Path.GetFullPath(full), Path.GetFullPath(_doc.Value.Path),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                ScrollToAnchor(anchor); // 指向当前文件：只跳转，不开新窗口
+                return;
+            }
+            var window = new MainWindow(full, anchor: anchor);
             window.Activate();
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or System.Security.SecurityException)
         {
             ShowBar($"链接无法解析「{href}」");
         }
+    }
+
+    /// <summary>按标题文本匹配大纲行号并滚动；新窗口在大纲到达后由 OutlineChanged 调用</summary>
+    private void ScrollToAnchor(string? anchor)
+    {
+        if (string.IsNullOrWhiteSpace(anchor)) return;
+        var line = FindOutlineLine(anchor);
+        if (line is null) { ShowBar($"未找到标题「{anchor}」"); return; }
+        Post(new { type = BridgeMessages.ScrollToHeading, line = line.Value });
+    }
+
+    private int? FindOutlineLine(string anchor)
+    {
+        var want = anchor.Trim().TrimStart('#').Trim();
+        if (want.Length == 0) return null;
+        foreach (var item in _outline)
+            if (string.Equals(item.text.Trim(), want, StringComparison.OrdinalIgnoreCase))
+                return item.line;
+        foreach (var item in _outline)
+            if (item.text.Contains(want, StringComparison.OrdinalIgnoreCase))
+                return item.line;
+        return null;
+    }
+
+    /// <summary>资源根：优先含 .obsidian 的祖先目录，否则从当前目录向上最多 6 层</summary>
+    private static string? FindContentRoot(string? dir)
+    {
+        if (dir is null) return null;
+        var current = Path.GetFullPath(dir);
+        string? highest = current;
+        for (var depth = 0; depth < 6 && current is not null; depth++)
+        {
+            if (Directory.Exists(Path.Combine(current, ".obsidian"))) return current;
+            highest = current;
+            current = Path.GetDirectoryName(current);
+        }
+        return highest;
+    }
+
+    /// <summary>规范化后判断路径是否位于根目录内（含根本身）</summary>
+    private static bool IsWithin(string path, string root)
+    {
+        var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var normalizedPath = Path.GetFullPath(path);
+        if (string.Equals(normalizedPath, normalizedRoot, StringComparison.OrdinalIgnoreCase)) return true;
+        return normalizedPath.StartsWith(
+            normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ResolveWikilink(string currentPath, string target)
@@ -659,16 +775,23 @@ public sealed partial class MainWindow : Window
                         .Select(i => (i.GetProperty("level").GetInt32(), i.GetProperty("text").GetString() ?? "", i.GetProperty("line").GetInt32()))
                         .ToList();
                     if (_totalMode) RefreshSidebarOutline();
+                    if (_pendingAnchor is { } pending)
+                    {
+                        _pendingAnchor = null;
+                        ScrollToAnchor(pending);
+                    }
                     break;
                 case BridgeMessages.OpenLink:
                     var href = json.RootElement.GetProperty("href").GetString() ?? "";
                     if (href.StartsWith("http://") || href.StartsWith("https://"))
                         _ = Launcher.LaunchUriAsync(new Uri(href));
-                    else if (!href.StartsWith("#"))
+                    else
                         OpenLocalMarkdownLink(href);
                     break;
                 case BridgeMessages.OpenWikilink:
-                    OpenWikilink(json.RootElement.GetProperty("target").GetString() ?? "");
+                    OpenWikilink(
+                        json.RootElement.GetProperty("target").GetString() ?? "",
+                        json.RootElement.TryGetProperty("anchor", out var anchorEl) ? anchorEl.GetString() : null);
                     break;
                 case BridgeMessages.Diag:
                     Perf($"web:{json.RootElement.GetProperty("text").GetString()}");

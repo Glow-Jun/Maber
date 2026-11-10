@@ -54,4 +54,23 @@ describe("obsidian syntax", () => {
   it("![[image.png]] embeds image", () => {
     expect(md().render("![[pic.png]]")).toContain("<img");
   });
+
+  it("wikilink keeps heading anchor separately", () => {
+    const html = md().render("[[笔记#第二节|别名]]");
+    expect(html).toContain('data-target="笔记"');
+    expect(html).toContain('data-anchor="第二节"');
+    expect(html).toContain(">别名</a>");
+  });
+
+  it("wikilink without alias shows note and heading", () => {
+    const html = md().render("[[笔记#第二节]]");
+    expect(html).toContain(">笔记 &gt; 第二节</a>");
+  });
+
+  it("self wikilink anchor renders as in-page jump", () => {
+    const html = md().render("[[#第二节]]");
+    expect(html).toContain('data-target=""');
+    expect(html).toContain('data-anchor="第二节"');
+    expect(html).toContain(">第二节</a>");
+  });
 });

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, v0.3]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: src/Maber.Web/package-lock.json
+
+      - name: Restore .NET
+        run: dotnet restore
+
+      - name: Build .NET
+        run: dotnet build --no-restore -c Debug
+
+      - name: Test .NET
+        run: dotnet test --no-build -c Debug
+
+      - name: Install renderer dependencies
+        working-directory: src/Maber.Web
+        run: npm ci
+
+      - name: Typecheck renderer
+        working-directory: src/Maber.Web
+        run: npm run typecheck
+
+      - name: Test renderer
+        working-directory: src/Maber.Web
+        run: npm test

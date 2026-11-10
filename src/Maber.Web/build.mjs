@@ -6,13 +6,17 @@ const outDir = "../Maber.App/wwwroot";
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
+// 生产构建不产出 source map（16MB 级别，会明显增大安装包与仓库）；
+// 需要调试时用 npm run build:debug 或 --watch。
+const wantSourceMap = process.argv.includes("--watch") || process.argv.includes("--sourcemap");
+
 await esbuild.build({
   entryPoints: ["src/main.ts"],
   bundle: true,
   splitting: true,
   format: "esm",
   outdir: outDir,
-  sourcemap: process.argv.includes("--watch") ? false : "linked",
+  sourcemap: wantSourceMap ? "linked" : false,
   minify: !process.argv.includes("--watch"),
   target: "es2022",
   logLevel: "info",

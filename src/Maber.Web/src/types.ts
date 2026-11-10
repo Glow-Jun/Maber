@@ -32,7 +32,7 @@ export type WebMessage =
   | { type: "contentChanged"; content: string }
   | { type: "readingPosition"; ratio: number }
   | { type: "openLink"; href: string }
-  | { type: "openWikilink"; target: string }
+  | { type: "openWikilink"; target: string; anchor?: string }
   | { type: "diag"; text: string };
 
 export interface OutlineItem { level: number; text: string; line: number }

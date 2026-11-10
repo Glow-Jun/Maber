@@ -64,4 +64,26 @@ public class EncodingDetectorTests
         var r = EncodingDetector.Decode(Array.Empty<byte>());
         Assert.Equal(string.Empty, r.Text);
     }
+
+    [Fact]
+    public void PngHeader_IsBinary()
+    {
+        var bytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D };
+        Assert.True(EncodingDetector.IsLikelyBinary(bytes));
+    }
+
+    [Fact]
+    public void ControlHeavyContent_IsBinary()
+    {
+        var bytes = Enumerable.Repeat((byte)0x01, 100).ToArray();
+        Assert.True(EncodingDetector.IsLikelyBinary(bytes));
+    }
+
+    [Fact]
+    public void Utf8AndGbkText_AreNotBinary()
+    {
+        Assert.False(EncodingDetector.IsLikelyBinary("# 中文内容\n第二行\n"u8.ToArray()));
+        var gbk = Encoding.GetEncoding("GBK").GetBytes("# 中文内容\n第二行\n");
+        Assert.False(EncodingDetector.IsLikelyBinary(gbk));
+    }
 }

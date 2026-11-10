@@ -4,6 +4,12 @@ namespace Maber.Core;
 
 public readonly record struct DecodeResult(string Text, string EncodingName, bool HasBom);
 
+/// <summary>打开的路径不是文本文件（图片、压缩包等），由壳层提示并拒绝渲染。</summary>
+public sealed class BinaryFileException : Exception
+{
+    public BinaryFileException() : base("文件包含二进制内容") { }
+}
+
 public static class EncodingDetector
 {
     static EncodingDetector()
@@ -14,6 +20,23 @@ public static class EncodingDetector
     private static readonly Encoding StrictUtf8 =
         new UTF8Encoding(encoderShouldEmitUTF8Identifier: false,
                          throwOnInvalidBytes: true);
+
+    /// <summary>
+    /// 轻量二进制判定：前 8KB 内出现 NUL，或不可打印控制字符占比超过 2%。
+    /// 文本文件（含 GBK）不会命中，避免把二进制内容按 GBK 解成整页乱码。
+    /// </summary>
+    public static bool IsLikelyBinary(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length == 0) return false;
+        var sample = bytes[..Math.Min(bytes.Length, 8192)];
+        var controls = 0;
+        foreach (var b in sample)
+        {
+            if (b == 0) return true;
+            if (b < 0x09 || (b > 0x0D && b < 0x20)) controls++;
+        }
+        return controls * 100 > sample.Length * 2;
+    }
 
     public static DecodeResult Decode(byte[] bytes)
     {

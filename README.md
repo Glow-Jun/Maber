@@ -7,7 +7,7 @@ There is no vault, no workspace, no database, and no import step. A native WinUI
 handles the window and file access, while a WebView2 renderer provides the typography and
 Markdown ecosystem.
 
-![version](https://img.shields.io/badge/version-v0.4.3-blue)
+![version](https://img.shields.io/badge/version-v0.3.0-blue)
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2B-lightgrey)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
@@ -26,6 +26,7 @@ Markdown ecosystem.
 - Obsidian dialect: `[[wikilinks]]`, `![[embeds]]`, callouts, `==highlight==`, `%%comments%%`,
   and `#tags`.
 - KaTeX math (`$...$` and `$$...$$`) and Mermaid diagrams, both toggleable.
+- Footnotes, heading anchors (`#标题` and `[[#标题]]`), and in-page jumps.
 - Frontmatter is shown as a metadata strip instead of being mixed into the body.
 - Light theme by default, with optional dark theme or system theme.
 
@@ -55,7 +56,10 @@ Markdown ecosystem.
 - Atomic saves with UTF-8, UTF-8 BOM, and GBK detection and write-back.
 - `[[wikilinks]]` and `[text](path.md)` links open in a new window; web links open in the
   default browser.
-- Relative images resolve against the document's folder.
+- Local links decode Chinese and space-containing paths; `#标题` opens the matching heading.
+- Relative images resolve against the document's folder, its vault root (`.obsidian`), or
+  up to six parent folders for `../` attachments.
+- Binary files are rejected before rendering instead of being decoded as text.
 
 ### Interface
 
@@ -68,16 +72,22 @@ Markdown ecosystem.
 
 ## Install
 
-Run `Maber-Setup-0.4.3.exe`.
+Run `Maber-Setup-0.3.0.exe` (Inno Setup, recommended).
 
 - Default location: `C:\Program Files\Maber`; the destination page is editable.
 - Requires administrator privileges (UAC).
+- Checks for the .NET 10 Desktop Runtime and warns before installing if it is missing.
 - Creates a Start Menu shortcut and an optional desktop shortcut.
 - Registers `.md` and `.markdown` so Maber appears in **Open with** and in
   **Settings → Default apps**. The installer does not silently take over the current default;
   choose **Always use Maber** once to make it the default.
 - Can be removed from **Settings → Apps → Installed apps**.
 - Requires Windows 10 1809+ (x64) and the .NET 10 Desktop Runtime.
+
+An MSIX package can be produced with `installer/build-msix.ps1`. It is self-contained by
+default and declares the same `.md` / `.markdown` associations. MSIX is a separate packaging
+route from Inno; Inno itself cannot generate MSIX. A development certificate is available via
+`installer/msix/make-cert.ps1`.
 
 User data is stored separately from the installation:
 
@@ -122,10 +132,13 @@ dotnet run --project src/Maber.App
 
 # Tests
 dotnet test
-npm test          # in src/Maber.Web
+cd src/Maber.Web
+npm run typecheck
+npm test
 
-# Installer (requires Inno Setup 6; output goes to the repository root)
-iscc installer/Maber.iss
+# Installers (output goes to the repository root)
+pwsh installer/build-exe.ps1    # Inno Setup 6 required
+pwsh installer/build-msix.ps1   # Windows SDK makeappx / signtool required
 ```
 
 ## Architecture

@@ -27,6 +27,14 @@ describe("renderer base", () => {
     md.render("---\ntitle: hello\n---\n\nbody\n", env);
     expect(env.frontmatter).toEqual({ title: "hello" });
   });
+
+  it("renders footnotes", () => {
+    const html = md.render("引用[^1]\n\n[^1]: 脚注内容\n");
+    expect(html).toContain('class="footnote-ref"');
+    expect(html).toContain('class="footnotes"');
+    expect(html).toContain("脚注内容");
+    expect(html).not.toContain('href="%E8%84%9A');
+  });
 });
 
 describe("preserveIndent", () => {
