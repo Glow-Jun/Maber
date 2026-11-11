@@ -72,7 +72,7 @@ Markdown ecosystem.
 
 ## Install
 
-Run `Maber-Setup-0.3.0.exe` (Inno Setup, recommended).
+Run `Maber-Setup-0.3.0.exe`.
 
 - Default location: `C:\Program Files\Maber`; the destination page is editable.
 - Requires administrator privileges (UAC).
@@ -83,11 +83,6 @@ Run `Maber-Setup-0.3.0.exe` (Inno Setup, recommended).
   choose **Always use Maber** once to make it the default.
 - Can be removed from **Settings → Apps → Installed apps**.
 - Requires Windows 10 1809+ (x64) and the .NET 10 Desktop Runtime.
-
-An MSIX package can be produced with `installer/build-msix.ps1`. It is self-contained by
-default and declares the same `.md` / `.markdown` associations. MSIX is a separate packaging
-route from Inno; Inno itself cannot generate MSIX. A development certificate is available via
-`installer/msix/make-cert.ps1`.
 
 User data is stored separately from the installation:
 
@@ -136,9 +131,8 @@ cd src/Maber.Web
 npm run typecheck
 npm test
 
-# Installers (output goes to the repository root)
+# Installer (output goes to the repository root)
 pwsh installer/build-exe.ps1    # Inno Setup 6 required
-pwsh installer/build-msix.ps1   # Windows SDK makeappx / signtool required
 ```
 
 ## Architecture
