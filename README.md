@@ -151,7 +151,7 @@ Maber.Core  UI-free services: encoding detection, non-exclusive file I/O,
   walking up its parent folders.
 - Source mode is a plain code editor, not a WYSIWYG editor.
 - Wikilinks are not validated, and embeds support images only.
-- No tabs, cross-file wikilink indexing, or MSIX packaging yet.
+- No tabs or cross-file wikilink indexing yet.
 
 ## License
 
